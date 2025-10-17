@@ -1,0 +1,268 @@
+basePath: /api/v1
+definitions:
+  meta-media-service_controller_respond.Response:
+    description: Unified API response structure
+    properties:
+      code:
+        example: 0
+        type: integer
+      data: {}
+      message:
+        example: success
+        type: string
+      processingTime:
+        example: 123
+        type: integer
+    type: object
+  model.ChunkType:
+    enum:
+    - single
+    - multi
+    type: string
+    x-enum-varnames:
+    - ChunkTypeSingle
+    - ChunkTypeMulti
+  model.File:
+    properties:
+      address:
+        type: string
+      block_height:
+        description: Block height
+        type: integer
+      chunk_type:
+        allOf:
+        - $ref: '#/definitions/model.ChunkType'
+        description: single/multi
+      content_hex:
+        description: Content hexadecimal
+        type: string
+      content_type:
+        description: Content type
+        type: string
+      created_at:
+        description: Creation time
+        type: string
+      file_content_type:
+        description: File content type
+        type: string
+      file_hash:
+        description: File hash
+        type: string
+      file_id:
+        description: metaid_filehash
+        type: string
+      file_md5:
+        description: File MD5
+        type: string
+      file_name:
+        description: File name
+        type: string
+      file_size:
+        description: File size
+        type: integer
+      file_type:
+        description: image/video/audio/document/other
+        type: string
+      id:
+        type: integer
+      meta_id:
+        description: MetaID
+        type: string
+      operation:
+        description: create/modify/revoke
+        type: string
+      path:
+        description: MetaID path
+        type: string
+      pin_id:
+        description: Pin ID
+        type: string
+      pre_tx_raw:
+        description: Pre-transaction raw data
+        type: string
+      state:
+        description: State 0:EXIST,2:DELETED
+        type: integer
+      status:
+        allOf:
+        - $ref: '#/definitions/model.Status'
+        description: pending/success/failed
+      storage_path:
+        description: Storage path
+        type: string
+      storage_type:
+        description: local/oss
+        type: string
+      tx_id:
+        description: On-chain transaction ID
+        type: string
+      tx_raw:
+        description: Transaction raw data
+        type: string
+      updated_at:
+        description: Update time
+        type: string
+    type: object
+  model.Status:
+    enum:
+    - pending
+    - success
+    - failed
+    type: string
+    x-enum-varnames:
+    - StatusPending
+    - StatusSuccess
+    - StatusFailed
+host: localhost:7281
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Meta Media Indexer Service API, provides file query and download functionality
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Meta Media Indexer API
+  version: "1.0"
+paths:
+  /files:
+    get:
+      consumes:
+      - application/json
+      description: Query file list with pagination
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/meta-media-service_controller_respond.Response'
+            - properties:
+                data:
+                  properties:
+                    files:
+                      items:
+                        $ref: '#/definitions/model.File'
+                      type: array
+                    page:
+                      type: integer
+                    page_size:
+                      type: integer
+                    total:
+                      type: integer
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+      summary: Query file list
+      tags:
+      - File Query
+  /files/{txid}:
+    get:
+      consumes:
+      - application/json
+      description: Query file details by transaction ID
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: txid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/meta-media-service_controller_respond.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.File'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+      summary: Get file by transaction ID
+      tags:
+      - File Query
+  /files/{txid}/content:
+    get:
+      consumes:
+      - application/json
+      description: Download file content by transaction ID
+      parameters:
+      - description: Transaction ID
+        in: path
+        name: txid
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+      summary: Download file content
+      tags:
+      - File Download
+  /files/path/{path}:
+    get:
+      consumes:
+      - application/json
+      description: Query file details by file path
+      parameters:
+      - description: File path
+        in: path
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/meta-media-service_controller_respond.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.File'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+      summary: Get file by path
+      tags:
+      - File Query
+schemes:
+- http
+- https
+swagger: "2.0"

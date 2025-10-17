@@ -1,0 +1,404 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Meta Media Indexer Service API, provides file query and download functionality",
+        "title": "Meta Media Indexer API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "API Support",
+            "url": "http://www.swagger.io/support",
+            "email": "support@swagger.io"
+        },
+        "license": {
+            "name": "Apache 2.0",
+            "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:7281",
+    "basePath": "/api/v1",
+    "paths": {
+        "/files": {
+            "get": {
+                "description": "Query file list with pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "File Query"
+                ],
+                "summary": "Query file list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "Page number",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "files": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/model.File"
+                                                    }
+                                                },
+                                                "page": {
+                                                    "type": "integer"
+                                                },
+                                                "page_size": {
+                                                    "type": "integer"
+                                                },
+                                                "total": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/files/path/{path}": {
+            "get": {
+                "description": "Query file details by file path",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "File Query"
+                ],
+                "summary": "Get file by path",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "File path",
+                        "name": "path",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.File"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/files/{txid}": {
+            "get": {
+                "description": "Query file details by transaction ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "File Query"
+                ],
+                "summary": "Get file by transaction ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Transaction ID",
+                        "name": "txid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.File"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/files/{txid}/content": {
+            "get": {
+                "description": "Download file content by transaction ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "File Download"
+                ],
+                "summary": "Download file content",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Transaction ID",
+                        "name": "txid",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "meta-media-service_controller_respond.Response": {
+            "description": "Unified API response structure",
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "data": {},
+                "message": {
+                    "type": "string",
+                    "example": "success"
+                },
+                "processingTime": {
+                    "type": "integer",
+                    "example": 123
+                }
+            }
+        },
+        "model.ChunkType": {
+            "type": "string",
+            "enum": [
+                "single",
+                "multi"
+            ],
+            "x-enum-varnames": [
+                "ChunkTypeSingle",
+                "ChunkTypeMulti"
+            ]
+        },
+        "model.File": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "block_height": {
+                    "description": "Block height",
+                    "type": "integer"
+                },
+                "chunk_type": {
+                    "description": "single/multi",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.ChunkType"
+                        }
+                    ]
+                },
+                "content_hex": {
+                    "description": "Content hexadecimal",
+                    "type": "string"
+                },
+                "content_type": {
+                    "description": "Content type",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "Creation time",
+                    "type": "string"
+                },
+                "file_content_type": {
+                    "description": "File content type",
+                    "type": "string"
+                },
+                "file_hash": {
+                    "description": "File hash",
+                    "type": "string"
+                },
+                "file_id": {
+                    "description": "metaid_filehash",
+                    "type": "string"
+                },
+                "file_md5": {
+                    "description": "File MD5",
+                    "type": "string"
+                },
+                "file_name": {
+                    "description": "File name",
+                    "type": "string"
+                },
+                "file_size": {
+                    "description": "File size",
+                    "type": "integer"
+                },
+                "file_type": {
+                    "description": "image/video/audio/document/other",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "meta_id": {
+                    "description": "MetaID",
+                    "type": "string"
+                },
+                "operation": {
+                    "description": "create/modify/revoke",
+                    "type": "string"
+                },
+                "path": {
+                    "description": "MetaID path",
+                    "type": "string"
+                },
+                "pin_id": {
+                    "description": "Pin ID",
+                    "type": "string"
+                },
+                "pre_tx_raw": {
+                    "description": "Pre-transaction raw data",
+                    "type": "string"
+                },
+                "state": {
+                    "description": "State 0:EXIST,2:DELETED",
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "pending/success/failed",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/model.Status"
+                        }
+                    ]
+                },
+                "storage_path": {
+                    "description": "Storage path",
+                    "type": "string"
+                },
+                "storage_type": {
+                    "description": "local/oss",
+                    "type": "string"
+                },
+                "tx_id": {
+                    "description": "On-chain transaction ID",
+                    "type": "string"
+                },
+                "tx_raw": {
+                    "description": "Transaction raw data",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Update time",
+                    "type": "string"
+                }
+            }
+        },
+        "model.Status": {
+            "type": "string",
+            "enum": [
+                "pending",
+                "success",
+                "failed"
+            ],
+            "x-enum-varnames": [
+                "StatusPending",
+                "StatusSuccess",
+                "StatusFailed"
+            ]
+        }
+    }
+}
