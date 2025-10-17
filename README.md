@@ -117,7 +117,9 @@ open http://localhost:7282
 - ✍️ Automatically call wallet for signing
 - 📡 One-click upload to blockchain
 
-Detailed usage: [Web Upload Page Documentation](docs/WEB_UPLOAD.md)
+## 📚 Documentation
+
+- **[📤 Upload Flow Guide (English)](./UPLOAD_FLOW.md)** - Complete guide for uploading files to blockchain with detailed steps and flow diagrams, combined with wallet operations
 
 ### Docker Deployment
 
