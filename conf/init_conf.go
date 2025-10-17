@@ -141,7 +141,7 @@ func InitConfig() error {
 		},
 
 		Uploader: UploaderConfig{
-			MaxFileSize:    viper.GetInt64("uploader.max_file_size"),
+			MaxFileSize:    viper.GetInt64("uploader.max_file_size") * 1024 * 1024, // MB to bytes
 			FeeRate:        viper.GetInt64("uploader.fee_rate"),
 			SwaggerBaseUrl: viper.GetString("uploader.swagger_base_url"),
 		},

@@ -19,7 +19,7 @@ indexer:
 # Uploader configuration
 uploader:
   port: "7282"  # Uploader service port
-  max_file_size: 10485760
+  max_file_size: 100 # MB
   fee_rate: 1
   swagger_base_url: "localhost:7282"  # Swagger API base URL (shown in Swagger UI)
 

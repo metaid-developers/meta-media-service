@@ -362,7 +362,7 @@ indexer:
 ```yaml
 uploader:
   enabled: true
-  max_file_size: 10485760  # Max file size (10MB)
+  max_file_size: 10  # Max file size (10MB)
   fee_rate: 1              # Default fee rate
 ```
 
