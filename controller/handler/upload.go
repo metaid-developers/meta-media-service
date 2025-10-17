@@ -237,12 +237,13 @@ func (h *UploadHandler) CommitUpload(c *gin.Context) {
 
 // ConfigResponse configuration response
 type ConfigResponse struct {
-	MaxFileSize int64 `json:"maxFileSize" example:"10485760" description:"Max file size (bytes)"`
+	MaxFileSize    int64  `json:"maxFileSize" example:"10485760" description:"Max file size (bytes)"`
+	SwaggerBaseUrl string `json:"swaggerBaseUrl" example:"localhost:7282" description:"Swagger API base URL"`
 }
 
 // GetConfig get configuration information
 // @Summary      Get configuration
-// @Description  Get upload service configuration information, including max file size
+// @Description  Get upload service configuration information, including max file size and swagger base URL
 // @Tags         Configuration
 // @Accept       json
 // @Produce      json
@@ -250,6 +251,7 @@ type ConfigResponse struct {
 // @Router       /config [get]
 func (h *UploadHandler) GetConfig(c *gin.Context) {
 	respond.Success(c, ConfigResponse{
-		MaxFileSize: conf.Cfg.Uploader.MaxFileSize,
+		MaxFileSize:    conf.Cfg.Uploader.MaxFileSize,
+		SwaggerBaseUrl: conf.Cfg.Uploader.SwaggerBaseUrl,
 	})
 }

@@ -1,11 +1,12 @@
-// API base URL
-const API_BASE = window.location.origin;
+// API base URL - Get the current path to support reverse proxy with subpath
+const API_BASE = window.location.origin + window.location.pathname.replace(/\/$/, '');
 
 // Global state
 let selectedFile = null;
 let walletConnected = false;
 let currentAddress = null;
 let maxFileSize = 10485760; // Default 10MB, will be fetched from server
+let swaggerBaseUrl = ''; // Swagger base URL from server config
 
 // DOM elements
 const connectBtn = document.getElementById('connectBtn');
@@ -27,6 +28,12 @@ const maxFileSizeText = document.getElementById('maxFileSizeText');
 // Initialization
 window.addEventListener('load', () => {
     console.log('🚀 Page loaded, starting initialization...');
+    console.log('🌐 Current URL info:', {
+        origin: window.location.origin,
+        pathname: window.location.pathname,
+        href: window.location.href,
+        API_BASE: API_BASE
+    });
     loadConfig(); // Load config
     initWalletCheck();
     initDragDrop();
@@ -44,10 +51,15 @@ async function loadConfig() {
         
         if (result.code === 0 && result.data) {
             maxFileSize = result.data.maxFileSize;
+            swaggerBaseUrl = result.data.swaggerBaseUrl || '';
+            
             const sizeText = formatFileSize(maxFileSize);
             maxFileSizeText.textContent = sizeText;
             addLog(`File size limit: ${sizeText}`, 'success');
             console.log('✅ Configuration loaded successfully:', result.data);
+            
+            // Update Swagger link if baseUrl is configured
+            updateSwaggerLink();
         } else {
             throw new Error(result.message || 'Failed to load configuration');
         }
@@ -55,6 +67,46 @@ async function loadConfig() {
         console.error('❌ Failed to load configuration:', error);
         maxFileSizeText.textContent = formatFileSize(maxFileSize) + ' (default)';
         addLog('Failed to load configuration, using default values', 'error');
+    }
+}
+
+// Update Swagger documentation link
+function updateSwaggerLink() {
+    console.log('🔍 Updating Swagger link, swaggerBaseUrl:', swaggerBaseUrl);
+    
+    const swaggerLink = document.getElementById('swaggerLink');
+    console.log('🔍 swaggerLink element:', swaggerLink);
+    
+    if (!swaggerLink) {
+        console.warn('⚠️ swaggerLink element not found!');
+        return;
+    }
+    
+    if (swaggerBaseUrl) {
+        // Build Swagger URL based on baseUrl
+        // swaggerBaseUrl format examples:
+        // - "localhost:7282" -> use relative path /swagger/index.html
+        // - "file.metaid.io/metafile-uploader" -> https://file.metaid.io/metafile-uploader/swagger/index.html
+        
+        let swaggerUrl = 'swagger/index.html'; // default (relative path)
+        
+        if (swaggerBaseUrl.includes('/')) {
+            // Contains path, likely a proxied URL
+            const protocol = window.location.protocol;
+            swaggerUrl = `${protocol}//${swaggerBaseUrl}/swagger/index.html`;
+            console.log(`📝 URL with path detected, protocol: ${protocol}, result: ${swaggerUrl}`);
+        } else if (!swaggerBaseUrl.includes('localhost') && !swaggerBaseUrl.includes('127.0.0.1')) {
+            // External domain without path
+            swaggerUrl = `https://${swaggerBaseUrl}/swagger/index.html`;
+            console.log(`📝 External domain detected, result: ${swaggerUrl}`);
+        } else {
+            console.log(`📝 Local development, using relative path: ${swaggerUrl}`);
+        }
+        
+        swaggerLink.href = swaggerUrl;
+        console.log('📚 Swagger URL updated:', swaggerUrl);
+    } else {
+        console.log('⚠️ swaggerBaseUrl is empty, keeping default link');
     }
 }
 
