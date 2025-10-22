@@ -484,6 +484,7 @@
             <div class="file-info-item"><strong>File Name:</strong> <span id="fileName"></span></div>
             <div class="file-info-item"><strong>File Size:</strong> <span id="fileSize"></span></div>
             <div class="file-info-item"><strong>File Type:</strong> <span id="fileType"></span></div>
+            <div class="file-info-item"><strong>Detected Extension:</strong> <span id="fileExtension" style="font-family: monospace; color: #28a745; font-weight: bold;"></span></div>
             <div class="file-info-item"><strong>ContentType:</strong> <span id="fileContentType" style="font-family: monospace; color: #667eea;"></span></div>
         </div>
 
@@ -500,6 +501,16 @@
                 <option value="modify">modify</option>
                 <option value="revoke">revoke</option>
             </select>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Host (Optional)</label>
+            <div style="position: relative;">
+                <input type="text" id="fileHostInput" class="form-input" placeholder="Enter host information (optional)">
+                <button type="button" id="showNowBtn" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: #28a745; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;">
+                    ShowNow
+                </button>
+            </div>
         </div>
 
         <div class="form-group">
@@ -520,6 +531,30 @@
             🚀 Start Upload to Chain
         </button>
 
+        <!-- Buzz Section (hidden by default) -->
+        <div id="buzzSection" class="hidden" style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
+            <h3 style="margin-bottom: 20px; color: #333; text-align: center;">📝 Send Buzz</h3>
+            
+            <div class="form-group">
+                <label class="form-label">Content</label>
+                <textarea id="buzzContent" class="form-input" placeholder="Enter your buzz content..." rows="3" style="resize: vertical;"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Host (Optional)</label>
+                <div style="position: relative;">
+                    <input type="text" id="buzzHost" class="form-input" placeholder="Enter host information (optional)">
+                    <button type="button" id="buzzShowNowBtn" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: #28a745; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer;">
+                        ShowNow
+                    </button>
+                </div>
+            </div>
+
+            <button id="sendBuzzBtn" class="btn btn-primary" style="width: 100%; padding: 16px; font-size: 16px;" disabled>
+                📝 Send Buzz
+            </button>
+        </div>
+
         <!-- Log Area -->
         <div class="log-section">
             <strong style="margin-bottom: 10px; display: block;">Operation Log</strong>
@@ -529,6 +564,8 @@
 
     <!-- Include meta-contract library (local version 0.3.35) -->
     <script src="static/metacontract.min.js"></script>
+    <!-- Include MetaID SDK (local version) -->
+    <script src="static/metaid.min.js"></script>
     <script>
         // Check if library is loaded successfully
         window.addEventListener('DOMContentLoaded', function() {
@@ -539,6 +576,14 @@
                     console.log('📦 Available classes:', Object.keys(mvc));
                 } else {
                     console.error('❌ meta-contract library failed to load, please check file path');
+                }
+                
+                // Check MetaID SDK
+                if (window.Metaid) {
+                    console.log('✅ MetaID SDK loaded successfully');
+                    console.log('📦 MetaID SDK available methods:', Object.keys(window.Metaid));
+                } else {
+                    console.error('❌ MetaID SDK failed to load');
                 }
             }, 100);
         });
