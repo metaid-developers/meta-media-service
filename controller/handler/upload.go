@@ -192,6 +192,114 @@ func (h *UploadHandler) PreUpload(c *gin.Context) {
 	respond.Success(c, resp)
 }
 
+// DirectUpload direct upload file with existing PreTxHex (one-step upload)
+// @Summary      Direct upload file (one-step)
+// @Description  Upload file and add MetaID OP_RETURN output to existing PreTxHex, then broadcast immediately. This is a one-step upload process that combines building and broadcasting. Supports UTXO merge transaction for SIGHASH_SINGLE compatibility.
+// @Tags         File Upload
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        file             formData  file    true   "File to upload"
+// @Param        path             formData  string  true   "File path"
+// @Param        preTxHex         formData  string  true   "Pre-transaction hex (signed, with inputs and outputs)"
+// @Param        mergeTxHex       formData  string  false  "Merge transaction hex (optional, broadcasted before main transaction)"
+// @Param        operation        formData  string  false  "Operation type"        default(create)
+// @Param        contentType      formData  string  false  "Content type"
+// @Param        metaId           formData  string  false  "MetaID"
+// @Param        address          formData  string  false  "Address (also used as change address if changeAddress is not provided)"
+// @Param        changeAddress    formData  string  false  "Change address (optional, defaults to address)"
+// @Param        feeRate          formData  int     false  "Fee rate (satoshis per byte, optional)"
+// @Param        totalInputAmount formData  int     false  "Total input amount in satoshis (optional, for automatic change calculation)"
+// @Success      200  {object}  respond.Response{data=CommitUploadResponseData}  "Upload successful, return transaction ID and Pin ID"
+// @Failure      400  {object}  respond.Response  "Parameter error"
+// @Failure      500  {object}  respond.Response  "Server error"
+// @Router       /files/direct-upload [post]
+func (h *UploadHandler) DirectUpload(c *gin.Context) {
+	// Read file content
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		respond.InvalidParam(c, "file is required")
+		return
+	}
+	defer file.Close()
+
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		respond.ServerError(c, "failed to read file")
+		return
+	}
+
+	// Get required parameters
+	path := c.PostForm("path")
+	if path == "" {
+		respond.InvalidParam(c, "path is required")
+		return
+	}
+
+	preTxHex := c.PostForm("preTxHex")
+	if preTxHex == "" {
+		respond.InvalidParam(c, "preTxHex is required")
+		return
+	}
+
+	// Get optional parameters
+	operation := c.PostForm("operation")
+	if operation == "" {
+		operation = "create"
+	}
+
+	contentType := c.PostForm("contentType")
+	if contentType == "" {
+		contentType = header.Header.Get("Content-Type")
+	}
+
+	metaId := c.PostForm("metaId")
+	address := c.PostForm("address")
+	changeAddress := c.PostForm("changeAddress")
+	mergeTxHex := c.PostForm("mergeTxHex") // Optional merge transaction hex
+
+	// Parse optional numeric parameters
+	feeRate := int64(0)
+	feeRateStr := c.PostForm("feeRate")
+	if feeRateStr != "" {
+		if rate, err := strconv.ParseInt(feeRateStr, 10, 64); err == nil {
+			feeRate = rate
+		}
+	}
+
+	totalInputAmount := int64(0)
+	totalInputAmountStr := c.PostForm("totalInputAmount")
+	if totalInputAmountStr != "" {
+		if amount, err := strconv.ParseInt(totalInputAmountStr, 10, 64); err == nil {
+			totalInputAmount = amount
+		}
+	}
+
+	// Build direct upload request
+	req := &upload_service.DirectUploadRequest{
+		MetaId:           metaId,
+		Address:          address,
+		FileName:         header.Filename,
+		Content:          content,
+		Path:             path,
+		Operation:        operation,
+		ContentType:      contentType,
+		MergeTxHex:       mergeTxHex,
+		PreTxHex:         preTxHex,
+		ChangeAddress:    changeAddress,
+		FeeRate:          feeRate,
+		TotalInputAmount: totalInputAmount,
+	}
+
+	// Upload file (one-step: build + broadcast)
+	resp, err := h.uploadService.DirectUpload(req)
+	if err != nil {
+		respond.ServerError(c, err.Error())
+		return
+	}
+
+	respond.Success(c, resp)
+}
+
 // CommitUploadRequest commit upload request
 type CommitUploadRequest struct {
 	FileId      string `json:"fileId" binding:"required" example:"metaid_abc123" description:"File ID (from pre-upload response)"`

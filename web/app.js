@@ -236,7 +236,8 @@ function initEventListeners() {
     
     // Upload button
     if (uploadBtn) {
-        uploadBtn.addEventListener('click', startUpload);
+        // uploadBtn.addEventListener('click', startUpload);
+        uploadBtn.addEventListener('click', startUpload2);
     } else {
         console.error('❌ uploadBtn element not found!');
     }
@@ -656,6 +657,546 @@ async function startUpload() {
         uploadBtn.disabled = false;
         uploadBtn.textContent = '🚀 Start Upload to Chain';
         progress.classList.remove('show');
+    }
+}
+
+// Start upload flow (DirectUpload - One-step method)
+async function startUpload2() {
+    // Validate wallet connection
+    if (!walletConnected) {
+        showNotification('⚠️ Please connect Metalet Wallet', 'warning');
+        addLog('❌ Wallet not connected', 'error');
+        return;
+    }
+    
+    // Validate file selection
+    if (!selectedFile) {
+        showNotification('⚠️ Please select file to upload', 'warning');
+        addLog('❌ No file selected', 'error');
+        return;
+    }
+    
+    console.log('✅ Validation passed: wallet connected, file selected');
+    addLog('Starting Direct Upload flow...', 'info');
+
+    try {
+        uploadBtn.disabled = true;
+        uploadBtn.textContent = 'Uploading...';
+        progress.classList.add('show');
+        
+        showNotification('Starting Direct Upload...', 'info');
+        
+        // Step 1: Estimate file upload fee
+        updateProgress(10, 'Step 1/5: Estimating upload fee...');
+        const estimatedFee = await estimateUploadFee();
+        addLog(`💰 Estimated fee: ${estimatedFee} satoshis`, 'info');
+        
+        // Step 2: Get UTXOs
+        updateProgress(30, 'Step 2/5: Getting UTXOs...');
+        const utxos = await getWalletUTXOs(estimatedFee);
+        addLog(`✅ Got ${utxos.utxos.length} UTXO(s), total: ${utxos.totalAmount} satoshis`, 'success');
+        
+        // Step 3: Merge UTXOs if needed (for SIGHASH_SINGLE compatibility)
+        let finalUtxo = null;
+        let mergeTxHex = ''; // Merge transaction hex (if UTXOs were merged)
+        
+        if (utxos.utxos.length > 1) {
+            updateProgress(40, 'Step 3/5: Merging UTXOs...');
+            addLog(`⚠️ Multiple UTXOs detected, merging into one UTXO...`, 'info');
+            showNotification('Please confirm UTXO merge transaction...', 'info');
+            const mergeResult = await mergeUTXOs(utxos, estimatedFee);
+            finalUtxo = {
+                utxos: mergeResult.utxos,
+                totalAmount: mergeResult.totalAmount
+            };
+            mergeTxHex = mergeResult.mergeTxHex || '';
+            addLog(`✅ UTXOs merged successfully`, 'success');
+            addLog(`📦 Merged UTXO: ${finalUtxo.totalAmount} satoshis`, 'info');
+        } else {
+            finalUtxo = {
+                utxos: utxos.utxos,
+                totalAmount: utxos.totalAmount
+            };
+            addLog(`✅ Single UTXO, no merge needed`, 'success');
+        }
+        
+        // Step 4: Build and sign base transaction
+        updateProgress(60, 'Step 4/5: Building and signing transaction...');
+        showNotification('Please confirm signature in wallet...', 'info');
+        const preTxHex = await buildAndSignBaseTx(finalUtxo);
+        addLog(`✅ Base transaction signed`, 'success');
+        
+        // Step 5: Direct upload (one-step: add OP_RETURN + calculate change + broadcast)
+        updateProgress(80, 'Step 5/5: Uploading to chain...');
+        const uploadResult = await directUpload(preTxHex, finalUtxo.totalAmount, mergeTxHex);
+        
+        // Completed
+        updateProgress(100, 'Upload completed!');
+        addLog(`✅ File uploaded successfully! TxID: ${uploadResult.txId}`, 'success');
+        showNotification(`🎉 File uploaded successfully!`, 'success');
+        
+        // Show links
+        showUploadSuccessLinks(uploadResult.txId, uploadResult.pinId);
+        
+        // Show buzz section after successful upload
+        console.log('📝 About to show buzz section with pinId:', uploadResult.pinId);
+        showBuzzSection(uploadResult.pinId);
+        
+        // Reset button state on success
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = '🚀 Start Upload to Chain';
+        progress.classList.remove('show');
+        
+    } catch (error) {
+        console.error('❌ Direct upload failed:', error);
+        addLog(`❌ Direct upload failed: ${error.message}`, 'error');
+        
+        // Show different hints based on error type
+        if (error.message && error.message.includes('user cancelled')) {
+            showNotification('Upload operation cancelled', 'warning');
+        } else {
+            showNotification('Upload failed: ' + error.message, 'error');
+        }
+        
+        // Reset button state on error
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = '🚀 Start Upload to Chain';
+        progress.classList.remove('show');
+    }
+}
+
+// Estimate file upload fee
+async function estimateUploadFee() {
+    try {
+        // Base transaction size estimation
+        const baseSize = 200; // Basic transaction overhead
+        const inputSize = 150; // Per input size (with signature)
+        const outputSize = 34; // Per output size
+        const opReturnOverhead = 50; // OP_RETURN script overhead
+        
+        // File size
+        const fileSize = selectedFile.size;
+        
+        // Calculate OP_RETURN output size
+        // MetaID protocol: metaid + operation + path + encryption + version + contentType + content
+        const path = document.getElementById('pathInput').value;
+        const fileHost = document.getElementById('fileHostInput').value.trim();
+        const finalPath = fileHost ? fileHost + ':' + path : path;
+        
+        const metadataSize = 6 + 10 + finalPath.length + 10 + 10 + 50; // Rough estimate
+        const opReturnSize = opReturnOverhead + metadataSize + fileSize;
+        
+        // Total transaction size estimation (1 input, 2 outputs: change + OP_RETURN)
+        const estimatedTxSize = baseSize + inputSize + outputSize * 2 + opReturnSize;
+        
+        // Get fee rate
+        const feeRate = Number(document.getElementById('feeRateInput').value) || 1;
+        
+        // Calculate fee
+        const estimatedFee = Math.ceil(estimatedTxSize * feeRate);
+        
+        // Add safety margin (20%)
+        const feeWithMargin = Math.ceil(estimatedFee * 1.2);
+        
+        addLog(`📏 Estimated tx size: ${estimatedTxSize} bytes`, 'info');
+        addLog(`💸 Fee rate: ${feeRate} sat/byte`, 'info');
+        addLog(`💰 Estimated fee (with 20% margin): ${feeWithMargin} satoshis`, 'info');
+        
+        return feeWithMargin;
+    } catch (error) {
+        console.error('❌ Failed to estimate fee:', error);
+        throw new Error(`Failed to estimate fee: ${error.message}`);
+    }
+}
+
+// Get wallet UTXOs
+async function getWalletUTXOs(requiredAmount) {
+    try {
+        addLog('Getting wallet UTXOs...', 'info');
+        
+        // Get UTXOs from wallet
+        const utxos = await window.metaidwallet.getUtxos();
+        
+        console.log('📦 Wallet UTXOs:', utxos);
+        
+        if (!utxos || utxos.length === 0) {
+            throw new Error('No available UTXOs in wallet');
+        }
+ 
+        // Filter UTXOs: only select UTXOs > 600 satoshis (to ensure change output is possible)
+        const filler = 600;
+        const fillerUtxos = utxos.filter(utxo => utxo.value > filler);
+        
+        if (!fillerUtxos || fillerUtxos.length === 0) {
+            throw new Error('No UTXOs larger than 600 satoshis available in wallet');
+        }
+    
+        // Sort UTXOs by amount (descending)
+        const sortedUtxos = fillerUtxos.sort((a, b) => b.value - a.value);
+        
+        // Get meta-contract library for address conversion
+        const metaContract = window.metaContract;
+        if (!metaContract || !metaContract.mvc) {
+            throw new Error('meta-contract library not loaded');
+        }
+        const mvc = metaContract.mvc;
+        
+        // Select UTXOs to meet required amount
+        let selectedUtxos = [];
+        let totalAmount = 0;
+        
+        for (const utxo of sortedUtxos) {
+            // Convert address to script
+            let scriptHex = mvc.Script.buildPublicKeyHashOut(utxo.address).toHex();
+            selectedUtxos.push({
+                txId: utxo.txid,
+                outputIndex: utxo.outIndex,
+                script: scriptHex,
+                satoshis: utxo.value
+            });
+            totalAmount += utxo.value;
+            
+            // Add buffer for change output ( 1 satoshi for receiver)
+            if (totalAmount >= requiredAmount + 1) {
+                break;
+            }
+        }
+
+        
+        if (totalAmount < requiredAmount + 1) {
+            throw new Error(`Insufficient balance! Need ${requiredAmount + 1} satoshis, but only have ${totalAmount} satoshis`);
+        }
+        console.log('📝 Selected UTXO:', selectedUtxos);
+        
+        addLog(`✅ Selected ${selectedUtxos.length} UTXO(s), total: ${totalAmount} satoshis`, 'success');
+        
+        return {
+            utxos: selectedUtxos,
+            totalAmount: totalAmount
+        };
+    } catch (error) {
+        console.error('❌ Failed to get UTXOs:', error);
+        throw new Error(`Failed to get UTXOs: ${error.message}`);
+    }
+}
+
+// Merge multiple UTXOs into one using pay method
+async function mergeUTXOs(utxoData, estimatedFee) {
+    try {
+        addLog('Merging multiple UTXOs into one...', 'info');
+        addLog(`📦 Merging ${utxoData.utxos.length} UTXOs (total: ${utxoData.totalAmount} sats)`, 'info');
+        
+        // Check if pay method is available
+        if (typeof window.metaidwallet.pay !== 'function') {
+            throw new Error('Wallet does not support pay method');
+        }
+        
+        // Get meta-contract library for TxComposer
+        const metaContract = window.metaContract;
+        if (!metaContract) {
+            throw new Error('meta-contract library not loaded, please refresh page');
+        }
+        
+        const mvc = metaContract.mvc;
+        const TxComposer = metaContract.TxComposer;
+        
+        if (!mvc || !TxComposer) {
+            throw new Error('mvc or TxComposer not available');
+        }
+        
+        // Create merge transaction - we only specify the output
+        // pay method will automatically select inputs, add change, and sign
+        const mergeTx = new mvc.Transaction();
+        mergeTx.version = 10;
+        
+        // Add single output to ourselves (this will merge all UTXOs into one)
+        // We use a large amount that will consume most UTXOs
+        // The pay method will handle input selection and change calculation
+        mergeTx.to(currentAddress, estimatedFee); 
+        
+        addLog(`📤 Merge target: consolidate to ${currentAddress}`, 'info');
+        console.log('📦 Merge transaction template:', mergeTx);
+        
+        // Create TxComposer for pay method
+        const txComposer = new TxComposer(mergeTx);
+        const txComposerSerialize = txComposer.serialize();
+        
+        // Build pay params
+        const feeRate = Number(document.getElementById('feeRateInput').value) || 1;
+        const payParams = {
+            transactions: [
+                {
+                    txComposer: txComposerSerialize,
+                    message: 'Merge UTXOs',
+                }
+            ],
+            // broadcast: false, // Don't broadcast, we just need the signed tx
+            feeb: feeRate,
+        };
+        
+        addLog('📡 Calling pay method to merge and sign...', 'info');
+        console.log('📡 Pay params:', payParams);
+        
+        // Call pay method - it will auto select inputs, add change, and sign
+        const payResult = await window.metaidwallet.pay(payParams);
+        console.log('✅ Pay result:', payResult);
+        
+        if (!payResult || !payResult.payedTransactions || payResult.payedTransactions.length === 0) {
+            throw new Error('Pay method returned invalid result');
+        }
+        
+        // Deserialize the payed transaction
+        const payedTxComposerStr = payResult.payedTransactions[0];
+        const payedTxComposer = TxComposer.deserialize(payedTxComposerStr);
+        
+        // Get signed transaction hex
+        const signedMergeTxHex = payedTxComposer.getRawHex();
+        const mergeTxId = payedTxComposer.getTxId();
+        
+        addLog('✅ Merge transaction created and signed via pay', 'success');
+        console.log('📝 Signed merge tx:', signedMergeTxHex.substring(0, 100) + '...');
+        console.log('📝 Merge txId:', mergeTxId);
+        
+        // Parse the transaction to get output info
+        const parsedMergeTx = new mvc.Transaction(signedMergeTxHex);
+        console.log('📦 Parsed merge transaction:', parsedMergeTx);
+        
+        // Find the output that goes to our address (the merged UTXO)
+        // pay method will create outputs: [our output, possibly change output]
+        let mergedOutputIndex = -1;
+        let mergedOutputAmount = 0;
+        
+        for (let i = 0; i < parsedMergeTx.outputs.length; i++) {
+            const output = parsedMergeTx.outputs[i];
+            const outputScript = output.script.toHex();
+            
+            // Check if this output is to our address
+            // We can identify it by checking if it's a P2PKH to our address
+            try {
+                const addr = output.script.toAddress(mvc.Networks.livenet);
+                if (addr && addr.toString() === currentAddress) {
+                    mergedOutputIndex = i;
+                    mergedOutputAmount = output.satoshis;
+                    break;
+                }
+            } catch (e) {
+                // Not a standard P2PKH output, skip
+                continue;
+            }
+        }
+        
+        if (mergedOutputIndex === -1) {
+            // Fallback: use the first output (usually the main output)
+            mergedOutputIndex = 0;
+            mergedOutputAmount = parsedMergeTx.outputs[0].satoshis;
+            addLog('⚠️ Could not identify output, using first output', 'warning');
+        }
+        
+        // Create new UTXO info from merge transaction
+        const newUtxo = {
+            txId: mergeTxId,
+            outputIndex: mergedOutputIndex,
+            script: parsedMergeTx.outputs[mergedOutputIndex].script.toHex(),
+            satoshis: mergedOutputAmount
+        };
+        
+        addLog(`✅ New merged UTXO: ${newUtxo.satoshis} satoshis at output ${mergedOutputIndex}`, 'success');
+        console.log('📦 New UTXO:', newUtxo);
+        
+        // Return merged UTXO info (no broadcast needed)
+        return {
+            utxos: [newUtxo],
+            totalAmount: newUtxo.satoshis,
+            mergeTxId: mergeTxId,
+            mergeTxHex: signedMergeTxHex
+        };
+        
+    } catch (error) {
+        console.error('❌ Failed to merge UTXOs:', error);
+        throw new Error(`Failed to merge UTXOs: ${error.message}`);
+    }
+}
+
+// Build and sign base transaction (SIGHASH_SINGLE compatible - requires single UTXO)
+async function buildAndSignBaseTx(utxoData) {
+    try {
+        addLog('Building base MVC transaction...', 'info');
+        
+        // Validate: must have exactly one UTXO for SIGHASH_SINGLE
+        if (!utxoData.utxos || utxoData.utxos.length !== 1) {
+            throw new Error(`SIGHASH_SINGLE requires exactly 1 UTXO, got ${utxoData.utxos ? utxoData.utxos.length : 0}`);
+        }
+        
+        // Get meta-contract library
+        const metaContract = window.metaContract;
+        if (!metaContract) {
+            throw new Error('meta-contract library not loaded, please refresh page');
+        }
+        
+        const mvc = metaContract.mvc;
+        if (!mvc) {
+            throw new Error('mvc library not available');
+        }
+        
+        const utxo = utxoData.utxos[0]; // Single UTXO
+        addLog(`📦 Using single UTXO: ${utxo.satoshis} satoshis`, 'info');
+        
+        // Create new transaction
+        const tx = new mvc.Transaction();
+        tx.version = 10; // MVC version
+        
+        // Add single input
+        tx.from({
+            txId: utxo.txId,
+            outputIndex: utxo.outputIndex,
+            script: utxo.script,
+            satoshis: utxo.satoshis
+        });
+        
+        // Add receiver output (1 satoshi)
+        tx.to(currentAddress, 1);
+        
+        addLog('✅ Base transaction built (unsigned)', 'success');
+        console.log('📦 Unsigned transaction:', tx);
+        
+        // Serialize to hex
+        const txHex = tx.toString();
+        
+        addLog('Requesting wallet to sign MVC transaction...', 'info');
+        console.log('📝 Transaction hex for signing:', txHex.substring(0, 100) + '...');
+        
+        // Check if signTransaction method exists
+        if (typeof window.metaidwallet.signTransaction !== 'function') {
+            throw new Error('Wallet does not support signTransaction method');
+        }
+        
+        // Sign the single input with SIGHASH_SINGLE
+        addLog('Signing input with SIGHASH_SINGLE...', 'info');
+        
+        console.log('📝 Signing input 0...', {
+            inputIndex: 0,
+            scriptHex: utxo.script,
+            satoshis: utxo.satoshis
+        });
+        
+        // Call signTransaction for this input
+        const signResult = await window.metaidwallet.signTransaction({
+            transaction: {
+                txHex: tx.toString(),
+                address: currentAddress,
+                inputIndex: 0,
+                scriptHex: utxo.script,
+                satoshis: utxo.satoshis,
+                sigtype: 0x3 | 0x80 | 0x40// SIGHASH_SINGLE | ANYONE_CAN_PAY (0x80 | 0x03 = 0x83) | SIGHASH_ANYONECANPAY (0x01 = 0x01)
+            }
+        });
+        
+        console.log('✅ Input signature:', signResult);
+        
+        if (!signResult || !signResult.signature || !signResult.signature.sig) {
+            throw new Error('Failed to get signature');
+        }
+        
+        // Build unlocking script (scriptSig) from signature
+        const sig = signResult.signature.sig;
+        const publicKey = signResult.signature.publicKey;
+        console.log('📝 Public key:', publicKey);
+        
+        // Build P2PKH unlocking script: <sig> <pubkey>
+        const unlockingScript = mvc.Script.buildPublicKeyHashIn(
+            publicKey,
+            mvc.crypto.Signature.fromTxFormat(Buffer.from(sig, 'hex')).toDER(),
+            0x3 | 0x80 | 0x40// SIGHASH_SINGLE | ANYONE_CAN_PAY (0x80 | 0x03 = 0x83) | SIGHASH_ANYONECANPAY (0x01 = 0x01)
+        );
+        console.log('📝 Unlocking script:', unlockingScript);
+
+        // Set the unlocking script for this input
+        tx.inputs[0].setScript(unlockingScript);
+        
+        addLog('✅ Input signed and script filled', 'success');
+        
+        // Get final signed transaction hex
+        const signedTxHex = tx.toString();
+        
+        addLog('✅ Transaction signed successfully with SIGHASH_SINGLE', 'success');
+        console.log('📝 Final signed txHex:', signedTxHex);
+        console.log('📝 Transaction:', tx);
+        
+        return signedTxHex;
+        
+    } catch (error) {
+        console.error('❌ Failed to build/sign MVC transaction:', error);
+        throw new Error(`Failed to build/sign MVC transaction: ${error.message}`);
+    }
+}
+
+// Direct upload (one-step)
+async function directUpload(preTxHex, totalInputAmount, mergeTxHex) {
+    try {
+        addLog('Calling DirectUpload API...', 'info');
+        
+        // Build contentType
+        let contentType = selectedFile.type || 'application/octet-stream';
+        if (!contentType.includes(';binary')) {
+            contentType = contentType + ';binary';
+        }
+        
+        const path = document.getElementById('pathInput').value;
+        
+        // Add host information to path if provided
+        const fileHost = document.getElementById('fileHostInput').value.trim();
+        let finalPath = path;
+        if (fileHost) {
+            finalPath = fileHost + ':' + path;
+            addLog(`🏠 File Host: ${fileHost}`, 'info');
+        }
+        
+        addLog(`📁 Path: ${finalPath}`, 'info');
+        addLog(`📄 ContentType: ${contentType}`, 'info');
+        addLog(`💰 Total input amount: ${totalInputAmount} satoshis`, 'info');
+        
+        if (mergeTxHex) {
+            addLog(`🔗 Merge transaction will be broadcasted first`, 'info');
+        }
+        
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('path', finalPath);
+        if (mergeTxHex) {
+            formData.append('mergeTxHex', mergeTxHex);
+        }
+        formData.append('preTxHex', preTxHex);
+        formData.append('operation', document.getElementById('operationSelect').value);
+        formData.append('contentType', contentType);
+        formData.append('metaId', await calculateMetaID(currentAddress));
+        formData.append('address', currentAddress);
+        formData.append('changeAddress', currentAddress);
+        formData.append('feeRate', document.getElementById('feeRateInput').value);
+        formData.append('totalInputAmount', totalInputAmount.toString());
+        
+        const response = await fetch(`${API_BASE}/api/v1/files/direct-upload`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP Error: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.code !== 0) {
+            throw new Error(result.message);
+        }
+        
+        addLog(`✅ DirectUpload success!`, 'success');
+        addLog(`📝 TxID: ${result.data.txId}`, 'success');
+        addLog(`📊 Status: ${result.data.status}`, 'success');
+        
+        return result.data;
+    } catch (error) {
+        console.error('❌ DirectUpload failed:', error);
+        throw new Error(`DirectUpload failed: ${error.message}`);
     }
 }
 

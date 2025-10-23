@@ -35,6 +35,9 @@ definitions:
       maxFileSize:
         example: 10485760
         type: integer
+      swaggerBaseUrl:
+        example: localhost:7282
+        type: string
     type: object
   controller_handler.PreUploadResponseData:
     properties:
@@ -102,7 +105,7 @@ paths:
       consumes:
       - application/json
       description: Get upload service configuration information, including max file
-        size
+        size and swagger base URL
       produces:
       - application/json
       responses:
@@ -151,6 +154,88 @@ paths:
           schema:
             $ref: '#/definitions/meta-media-service_controller_respond.Response'
       summary: Commit upload
+      tags:
+      - File Upload
+  /files/direct-upload:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload file and add MetaID OP_RETURN output to existing PreTxHex,
+        then broadcast immediately. This is a one-step upload process that combines
+        building and broadcasting. Supports UTXO merge transaction for SIGHASH_SINGLE
+        compatibility.
+      parameters:
+      - description: File to upload
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: File path
+        in: formData
+        name: path
+        required: true
+        type: string
+      - description: Pre-transaction hex (signed, with inputs and outputs)
+        in: formData
+        name: preTxHex
+        required: true
+        type: string
+      - description: Merge transaction hex (optional, broadcasted before main transaction)
+        in: formData
+        name: mergeTxHex
+        type: string
+      - default: create
+        description: Operation type
+        in: formData
+        name: operation
+        type: string
+      - description: Content type
+        in: formData
+        name: contentType
+        type: string
+      - description: MetaID
+        in: formData
+        name: metaId
+        type: string
+      - description: Address (also used as change address if changeAddress is not
+          provided)
+        in: formData
+        name: address
+        type: string
+      - description: Change address (optional, defaults to address)
+        in: formData
+        name: changeAddress
+        type: string
+      - description: Fee rate (satoshis per byte, optional)
+        in: formData
+        name: feeRate
+        type: integer
+      - description: Total input amount in satoshis (optional, for automatic change
+          calculation)
+        in: formData
+        name: totalInputAmount
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Upload successful, return transaction ID and Pin ID
+          schema:
+            allOf:
+            - $ref: '#/definitions/meta-media-service_controller_respond.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/controller_handler.CommitUploadResponseData'
+              type: object
+        "400":
+          description: Parameter error
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+        "500":
+          description: Server error
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+      summary: Direct upload file (one-step)
       tags:
       - File Upload
   /files/pre-upload:

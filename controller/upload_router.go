@@ -42,6 +42,7 @@ func SetupUploadRouter(stor storage.Storage) *gin.Engine {
 		// File upload
 		v1.POST("/files/pre-upload", uploadHandler.PreUpload)
 		v1.POST("/files/commit-upload", uploadHandler.CommitUpload)
+		v1.POST("/files/direct-upload", uploadHandler.DirectUpload) // One-step upload (recommended)
 
 		// Configuration
 		v1.GET("/config", uploadHandler.GetConfig)

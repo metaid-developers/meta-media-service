@@ -24,7 +24,7 @@
     "paths": {
         "/config": {
             "get": {
-                "description": "Get upload service configuration information, including max file size",
+                "description": "Get upload service configuration information, including max file size and swagger base URL",
                 "consumes": [
                     "application/json"
                 ],
@@ -108,6 +108,125 @@
                     },
                     "500": {
                         "description": "Server error or broadcast failed",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/files/direct-upload": {
+            "post": {
+                "description": "Upload file and add MetaID OP_RETURN output to existing PreTxHex, then broadcast immediately. This is a one-step upload process that combines building and broadcasting. Supports UTXO merge transaction for SIGHASH_SINGLE compatibility.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "File Upload"
+                ],
+                "summary": "Direct upload file (one-step)",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "File to upload",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "File path",
+                        "name": "path",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Pre-transaction hex (signed, with inputs and outputs)",
+                        "name": "preTxHex",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Merge transaction hex (optional, broadcasted before main transaction)",
+                        "name": "mergeTxHex",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "default": "create",
+                        "description": "Operation type",
+                        "name": "operation",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Content type",
+                        "name": "contentType",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "MetaID",
+                        "name": "metaId",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Address (also used as change address if changeAddress is not provided)",
+                        "name": "address",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Change address (optional, defaults to address)",
+                        "name": "changeAddress",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Fee rate (satoshis per byte, optional)",
+                        "name": "feeRate",
+                        "in": "formData"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Total input amount in satoshis (optional, for automatic change calculation)",
+                        "name": "totalInputAmount",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Upload successful, return transaction ID and Pin ID",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/controller_handler.CommitUploadResponseData"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Parameter error",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    },
+                    "500": {
+                        "description": "Server error",
                         "schema": {
                             "$ref": "#/definitions/meta-media-service_controller_respond.Response"
                         }
@@ -278,6 +397,10 @@
                 "maxFileSize": {
                     "type": "integer",
                     "example": 10485760
+                },
+                "swaggerBaseUrl": {
+                    "type": "string",
+                    "example": "localhost:7282"
                 }
             }
         },
