@@ -9,6 +9,30 @@ let currentAddress = null;
 let maxFileSize = 10485760; // Default 10MB, will be fetched from server
 let swaggerBaseUrl = ''; // Swagger base URL from server config
 
+// Helper function to get wallet object
+function getWallet() {
+    return window.detectedWallet || window.metaidwallet;
+}
+
+// Helper function to build contentType
+// For text/ types, don't add ;binary suffix
+function buildContentType(file) {
+    let contentType = file.type || 'application/octet-stream';
+    
+    // Check if it's a text type
+    const isTextType = contentType.startsWith('text/') || 
+                      contentType === 'application/json' ||
+                      contentType === 'application/javascript' ||
+                      contentType === 'application/xml';
+    
+    // Only add ;binary for non-text types
+    if (!isTextType && !contentType.includes(';binary')) {
+        contentType = contentType + ';binary';
+    }
+    
+    return contentType;
+}
+
 // DOM elements
 const connectBtn = document.getElementById('connectBtn');
 const disconnectBtn = document.getElementById('disconnectBtn');
@@ -60,6 +84,47 @@ window.addEventListener('load', () => {
     }
     
     addLog('Page initialization complete', 'info');
+});
+
+// Listen for wallet injection in mobile webview
+let walletCheckInterval = null;
+
+// Start monitoring for wallet injection
+function startWalletMonitoring() {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isInApp = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+    
+    if (isMobile || isInApp) {
+        console.log('🔍 Starting wallet monitoring for mobile webview...');
+        
+        walletCheckInterval = setInterval(() => {
+            if (typeof window.metaidwallet !== 'undefined' && !window.detectedWallet) {
+                console.log('✅ Wallet detected during monitoring!');
+                clearInterval(walletCheckInterval);
+                walletCheckInterval = null;
+                
+                const walletObject = detectWallet();
+                if (walletObject) {
+                    handleWalletDetected(walletObject);
+                }
+            }
+        }, 500); // Check every 500ms
+        
+        // Stop monitoring after 10 seconds
+        setTimeout(() => {
+            if (walletCheckInterval) {
+                console.log('⏰ Wallet monitoring timeout');
+                clearInterval(walletCheckInterval);
+                walletCheckInterval = null;
+            }
+        }, 10000);
+    }
+}
+
+// Start monitoring after page load
+window.addEventListener('load', () => {
+    // Start monitoring after a short delay to allow for wallet injection
+    setTimeout(startWalletMonitoring, 1000);
 });
 
 // Load configuration
@@ -130,42 +195,134 @@ function updateSwaggerLink() {
     }
 }
 
-// Check Metalet wallet
+// Check Metalet wallet with retry mechanism for mobile webview
 function initWalletCheck() {
-    if (typeof window.metaidwallet === 'undefined') {
-        addLog('Metalet wallet extension not detected', 'error');
-        walletAlert.classList.remove('hidden');
+    // Detect mobile environment
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isInApp = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+    
+    console.log('🔍 Environment detection:', {
+        userAgent: navigator.userAgent,
+        isMobile: isMobile,
+        isInApp: isInApp,
+        windowKeys: Object.keys(window).filter(k => k.toLowerCase().includes('meta') || k.toLowerCase().includes('wallet'))
+    });
+    
+    // Try to detect wallet immediately
+    const walletObject = detectWallet();
+    
+    if (walletObject) {
+        handleWalletDetected(walletObject);
     } else {
-        addLog('Metalet wallet extension installed', 'info');
-        
-        // Check available methods
-        console.log('🔍 Metalet wallet available methods:', Object.keys(window.metaidwallet));
-        
-        // Check signing methods
-        const signMethods = [];
-        if (typeof window.metaidwallet.pay === 'function') {
-            signMethods.push('pay (recommended)');
-        }
-        if (typeof window.metaidwallet.signTransactions === 'function') {
-            signMethods.push('signTransactions');
-        }
-        if (typeof window.metaidwallet.signTransaction === 'function') {
-            signMethods.push('signTransaction');
-        }
-        if (typeof window.metaidwallet.signRawTransaction === 'function') {
-            signMethods.push('signRawTransaction');
-        }
-        if (window.metaidwallet.btc && typeof window.metaidwallet.btc.signTransaction === 'function') {
-            signMethods.push('btc.signTransaction');
-        }
-        
-        if (signMethods.length > 0) {
-            console.log('✅ Supported signing methods:', signMethods);
-            addLog(`Supported signing methods: ${signMethods.join(', ')}`, 'info');
+        // If not detected and it's mobile, try with retry mechanism
+        if (isMobile || isInApp) {
+            addLog('Mobile environment detected, retrying wallet detection...', 'info');
+            retryWalletDetection(3, 1000); // Retry 3 times with 1 second intervals
         } else {
-            console.warn('⚠️ No standard signing method detected');
+            addLog('Metalet wallet extension not detected', 'error');
+            walletAlert.classList.remove('hidden');
         }
     }
+}
+
+// Detect wallet object
+function detectWallet() {
+    // Check for standard wallet object (works for both desktop and mobile)
+    if (typeof window.metaidwallet !== 'undefined') {
+        return {
+            object: window.metaidwallet,
+            type: 'Metalet Wallet'
+        };
+    }
+    
+    // Check for alternative wallet objects
+    if (typeof window.MetaletWallet !== 'undefined') {
+        return {
+            object: window.MetaletWallet,
+            type: 'MetaletWallet'
+        };
+    }
+    
+    if (typeof window.metalet !== 'undefined') {
+        return {
+            object: window.metalet,
+            type: 'metalet'
+        };
+    }
+    
+    if (window.Metaid && typeof window.Metaid.MetaletWalletForMvc !== 'undefined') {
+        return {
+            object: window.Metaid,
+            type: 'MetaID SDK'
+        };
+    }
+    
+    return null;
+}
+
+// Handle wallet detection success
+function handleWalletDetected(walletInfo) {
+    const { object: walletObject, type: walletType } = walletInfo;
+    
+    addLog(`Metalet wallet detected: ${walletType}`, 'info');
+    
+    // Store wallet object globally for use in other functions
+    window.detectedWallet = walletObject;
+    window.walletType = walletType;
+    
+    // Check available methods
+    console.log('🔍 Metalet wallet available methods:', Object.keys(walletObject));
+    
+    // Check signing methods
+    const signMethods = [];
+    if (typeof walletObject.pay === 'function') {
+        signMethods.push('pay (recommended)');
+    }
+    if (typeof walletObject.signTransactions === 'function') {
+        signMethods.push('signTransactions');
+    }
+    if (typeof walletObject.signTransaction === 'function') {
+        signMethods.push('signTransaction');
+    }
+    if (typeof walletObject.signRawTransaction === 'function') {
+        signMethods.push('signRawTransaction');
+    }
+    if (walletObject.btc && typeof walletObject.btc.signTransaction === 'function') {
+        signMethods.push('btc.signTransaction');
+    }
+    
+    if (signMethods.length > 0) {
+        console.log('✅ Supported signing methods:', signMethods);
+        addLog(`Supported signing methods: ${signMethods.join(', ')}`, 'info');
+    } else {
+        console.warn('⚠️ No standard signing method detected');
+    }
+    
+    // Hide wallet alert
+    walletAlert.classList.add('hidden');
+}
+
+// Retry wallet detection for mobile webview
+function retryWalletDetection(attempts, delay) {
+    if (attempts <= 0) {
+        addLog('Mobile Metalet app detected but wallet interface not found after retries', 'warning');
+        addLog('Please ensure you are using the latest version of Metalet app', 'info');
+        addLog('Try refreshing the page or restarting the Metalet app', 'info');
+        walletAlert.classList.add('hidden');
+        return;
+    }
+    
+    addLog(`Retrying wallet detection... (${attempts} attempts left)`, 'info');
+    
+    setTimeout(() => {
+        const walletObject = detectWallet();
+        
+        if (walletObject) {
+            handleWalletDetected(walletObject);
+        } else {
+            retryWalletDetection(attempts - 1, delay);
+        }
+    }, delay);
 }
 
 // Initialize drag and drop upload
@@ -309,11 +466,8 @@ function handleFile(file) {
     
     selectedFile = file;
     
-    // Build contentType (file type + ;binary)
-    let contentType = file.type || 'application/octet-stream';
-    if (!contentType.includes(';binary')) {
-        contentType = contentType + ';binary';
-    }
+    // Build contentType (text types don't need ;binary)
+    const contentType = buildContentType(file);
     
     // Detect file extension and store it globally
     const detectedExtension = getFileExtension(file);
@@ -347,12 +501,24 @@ function handleFile(file) {
 // Connect wallet
 async function connectWallet() {
     console.log('🔵 Starting to connect wallet...');
-    console.log('window.metaidwallet:', window.metaidwallet);
+    console.log('detectedWallet:', window.detectedWallet);
+    console.log('walletType:', window.walletType);
     
-    if (typeof window.metaidwallet === 'undefined') {
-        showNotification('Please install Metalet wallet extension first!', 'error');
-        addLog('❌ Metalet wallet not detected', 'error');
-        window.open('https://www.metalet.space/', '_blank');
+    // Use detected wallet object or fallback to window.metaidwallet
+    const wallet = getWallet();
+    
+    if (!wallet) {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isInApp = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+        
+        if (isMobile || isInApp) {
+            showNotification('Please ensure you are using the latest version of Metalet app', 'warning');
+            addLog('❌ Metalet wallet not detected in mobile app', 'error');
+        } else {
+            showNotification('Please install Metalet wallet extension first!', 'error');
+            addLog('❌ Metalet wallet not detected', 'error');
+            window.open('https://www.metalet.space/', '_blank');
+        }
         return;
     }
 
@@ -360,11 +526,11 @@ async function connectWallet() {
         connectBtn.disabled = true;
         connectBtn.textContent = 'Connecting...';
         
-        addLog('Requesting to connect Metalet wallet...', 'info');
-        console.log('📡 Calling window.metaidwallet.connect()...');
+        addLog(`Requesting to connect Metalet wallet (${window.walletType || 'Unknown'})...`, 'info');
+        console.log('📡 Calling wallet.connect()...');
         
         // Connect wallet
-        const account = await window.metaidwallet.connect();
+        const account = await wallet.connect();
         
         console.log('✅ Wallet response:', account);
         
@@ -503,9 +669,14 @@ function updateUploadButton() {
 async function fetchAndDisplayBalance() {
     try {
         addLog('Fetching wallet balance...', 'info');
-        console.log('💰 call window.metaidwallet.getBalance()...');
+        console.log('💰 call wallet.getBalance()...');
         
-        const balance = await window.metaidwallet.getBalance();
+        const wallet = getWallet();
+        if (!wallet) {
+            throw new Error('Wallet not available');
+        }
+        
+        const balance = await wallet.getBalance();
         console.log('✅ balance return result:', balance);
         
         // display balance info
@@ -815,7 +986,12 @@ async function getWalletUTXOs(requiredAmount) {
         addLog('Getting wallet UTXOs...', 'info');
         
         // Get UTXOs from wallet
-        const utxos = await window.metaidwallet.getUtxos();
+        const wallet = getWallet();
+        if (!wallet) {
+            throw new Error('Wallet not available');
+        }
+        
+        const utxos = await wallet.getUtxos();
         
         console.log('📦 Wallet UTXOs:', utxos);
         
@@ -887,7 +1063,12 @@ async function mergeUTXOs(utxoData, estimatedFee) {
         addLog(`📦 Merging ${utxoData.utxos.length} UTXOs (total: ${utxoData.totalAmount} sats)`, 'info');
         
         // Check if pay method is available
-        if (typeof window.metaidwallet.pay !== 'function') {
+        const wallet = getWallet();
+        if (!wallet) {
+            throw new Error('Wallet not available');
+        }
+        
+        if (typeof wallet.pay !== 'function') {
             throw new Error('Wallet does not support pay method');
         }
         
@@ -938,7 +1119,7 @@ async function mergeUTXOs(utxoData, estimatedFee) {
         console.log('📡 Pay params:', payParams);
         
         // Call pay method - it will auto select inputs, add change, and sign
-        const payResult = await window.metaidwallet.pay(payParams);
+        const payResult = await wallet.pay(payParams);
         console.log('✅ Pay result:', payResult);
         
         if (!payResult || !payResult.payedTransactions || payResult.payedTransactions.length === 0) {
@@ -1066,7 +1247,12 @@ async function buildAndSignBaseTx(utxoData) {
         console.log('📝 Transaction hex for signing:', txHex.substring(0, 100) + '...');
         
         // Check if signTransaction method exists
-        if (typeof window.metaidwallet.signTransaction !== 'function') {
+        const wallet = getWallet();
+        if (!wallet) {
+            throw new Error('Wallet not available');
+        }
+        
+        if (typeof wallet.signTransaction !== 'function') {
             throw new Error('Wallet does not support signTransaction method');
         }
         
@@ -1080,7 +1266,7 @@ async function buildAndSignBaseTx(utxoData) {
         });
         
         // Call signTransaction for this input
-        const signResult = await window.metaidwallet.signTransaction({
+        const signResult = await wallet.signTransaction({
             transaction: {
                 txHex: tx.toString(),
                 address: currentAddress,
@@ -1135,11 +1321,8 @@ async function directUpload(preTxHex, totalInputAmount, mergeTxHex) {
     try {
         addLog('Calling DirectUpload API...', 'info');
         
-        // Build contentType
-        let contentType = selectedFile.type || 'application/octet-stream';
-        if (!contentType.includes(';binary')) {
-            contentType = contentType + ';binary';
-        }
+        // Build contentType (text types don't need ;binary)
+        const contentType = buildContentType(selectedFile);
         
         const path = document.getElementById('pathInput').value;
         
@@ -1204,11 +1387,8 @@ async function directUpload(preTxHex, totalInputAmount, mergeTxHex) {
 async function preUpload() {
     addLog('call PreUpload API...', 'info');
     
-    // Build contentType (file type + ;binary)
-    let contentType = selectedFile.type || 'application/octet-stream';
-    if (!contentType.includes(';binary')) {
-        contentType = contentType + ';binary';
-    }
+    // Build contentType (text types don't need ;binary)
+    const contentType = buildContentType(selectedFile);
     
     // build outputs（use wallet address）
     const outputs = [{address: currentAddress, amount: 1}];
@@ -1262,7 +1442,12 @@ async function prepareUTXO(preUploadData) {
     addLog('get wallet balance...', 'info');
     
     // get balance
-    const balance = await window.metaidwallet.getBalance();
+    const wallet = getWallet();
+    if (!wallet) {
+        throw new Error('Wallet not available');
+    }
+    
+    const balance = await wallet.getBalance();
     const totalBalance = balance.total || balance.confirmed || balance.balance || 0;
     
     addLog(`💰 current balance: ${totalBalance} satoshis`, 'info');
@@ -1300,10 +1485,15 @@ async function signTransaction(preTxRaw, utxoData) {
     
     try {
         // check wallet methods
-        console.log('🔍 check available wallet methods:', Object.keys(window.metaidwallet));
+        const wallet = getWallet();
+        if (!wallet) {
+            throw new Error('Wallet not available');
+        }
+        
+        console.log('🔍 check available wallet methods:', Object.keys(wallet));
         
         // use pay method（TxComposer mode）
-        if (typeof window.metaidwallet.pay === 'function') {
+        if (typeof wallet.pay === 'function') {
             console.log('📡 use pay method...');
             addLog('use pay method to sign and pay...', 'info');
             
@@ -1361,7 +1551,7 @@ async function signTransaction(preTxRaw, utxoData) {
             
             console.log('📡 call pay,params:', payParams);
             
-            const payResult = await window.metaidwallet.pay(payParams);
+            const payResult = await wallet.pay(payParams);
             console.log('✅ pay return result:', payResult);
             
             // handle various possible return formats
@@ -1957,8 +2147,9 @@ function resetForm() {
 }
 
 // listen to wallet account change
-if (typeof window.metaidwallet !== 'undefined') {
-    window.metaidwallet.on('accountsChanged', async (account) => {
+const wallet = getWallet();
+if (wallet && typeof wallet.on === 'function') {
+    wallet.on('accountsChanged', async (account) => {
         console.log('📢 wallet account changed:', account);
         
         // compatible with different wallet API versions
