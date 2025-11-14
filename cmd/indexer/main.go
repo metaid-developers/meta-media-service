@@ -94,7 +94,7 @@ func initAll() (*indexer_service.IndexerService, *http.Server, func()) {
 	log.Printf("Configuration loaded: env=%s, net=%s, port=%s", ENV, conf.Cfg.Net, conf.Cfg.IndexerPort)
 
 	// Initialize database
-	if err := database.InitDB(); err != nil {
+	if err := initDatabase(); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
@@ -111,8 +111,8 @@ func initAll() (*indexer_service.IndexerService, *http.Server, func()) {
 		log.Fatalf("Failed to create indexer service: %v", err)
 	}
 
-	// Setup indexer service router
-	router := controller.SetupIndexerRouter(stor)
+	// Setup indexer service router (pass indexerService for scanner access)
+	router := controller.SetupIndexerRouter(stor, indexerService)
 
 	// Create HTTP server
 	srv := &http.Server{
@@ -122,10 +122,42 @@ func initAll() (*indexer_service.IndexerService, *http.Server, func()) {
 
 	// Return service instance and cleanup function
 	cleanup := func() {
-		database.CloseDB()
+		if database.DB != nil {
+			database.DB.Close()
+		}
 	}
 
 	return indexerService, srv, cleanup
+}
+
+// initDatabase initialize database based on configuration
+func initDatabase() error {
+	dbType := database.DBType(conf.Cfg.Database.IndexerType)
+
+	switch dbType {
+	case database.DBTypeMySQL:
+		config := &database.MySQLConfig{
+			DSN:          conf.Cfg.Database.Dsn,
+			MaxOpenConns: conf.Cfg.Database.MaxOpenConns,
+			MaxIdleConns: conf.Cfg.Database.MaxIdleConns,
+		}
+		return database.InitDatabase(database.DBTypeMySQL, config)
+
+	case database.DBTypePebble:
+		config := &database.PebbleConfig{
+			DataDir: conf.Cfg.Database.DataDir,
+		}
+		return database.InitDatabase(database.DBTypePebble, config)
+
+	default:
+		log.Printf("Indexer database type not specified, defaulting to MySQL")
+		config := &database.MySQLConfig{
+			DSN:          conf.Cfg.Database.Dsn,
+			MaxOpenConns: conf.Cfg.Database.MaxOpenConns,
+			MaxIdleConns: conf.Cfg.Database.MaxIdleConns,
+		}
+		return database.InitDatabase(database.DBTypeMySQL, config)
+	}
 }
 
 // startServer start HTTP server

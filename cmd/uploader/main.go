@@ -89,8 +89,8 @@ func initAll() (*http.Server, func()) {
 	}
 	log.Printf("Configuration loaded: env=%s, net=%s, port=%s", ENV, conf.Cfg.Net, conf.Cfg.UploaderPort)
 
-	// Initialize database
-	if err := database.InitDB(); err != nil {
+	// Initialize database (Uploader always uses MySQL)
+	if err := database.InitUploaderDB(); err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
@@ -112,7 +112,7 @@ func initAll() (*http.Server, func()) {
 
 	// Return server instance and cleanup function
 	cleanup := func() {
-		database.CloseDB()
+		database.CloseUploaderDB()
 	}
 
 	return srv, cleanup

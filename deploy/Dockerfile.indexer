@@ -43,9 +43,18 @@ COPY --from=builder /build/indexer .
 # Copy configuration directory (if needed))
 COPY --from=builder /build/conf ./conf
 
-# Create data directory
+# Copy web files
+COPY --from=builder /build/web ./web
+
+# Copy docs (swagger)
+COPY --from=builder /build/docs ./docs
+
+# Create data directories (before switching to appuser)
 RUN mkdir -p /app/data/files && \
-    chown -R appuser:appuser /app
+    mkdir -p /app/pebble_data && \
+    chmod -R 755 /app/pebble_data && \
+    chown -R appuser:appuser /app && \
+    chown -R appuser:appuser /app/pebble_data
 
 # Switch to non-root user
 USER appuser

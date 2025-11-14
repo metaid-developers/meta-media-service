@@ -242,7 +242,7 @@ func (s *UploadService) CommitUpload(fileId string, signedRawTx string) (*Upload
 		status string
 	)
 	// Use database transaction
-	err := database.DB.Transaction(func(tx *gorm.DB) error {
+	err := database.UploaderDB.Transaction(func(tx *gorm.DB) error {
 		// 1. Query file record
 		var file model.File
 		if err := tx.Where("file_id = ?", fileId).First(&file).Error; err != nil {
@@ -446,7 +446,7 @@ func (s *UploadService) DirectUpload(req *DirectUploadRequest) (*UploadResponse,
 	)
 
 	// Use database transaction to ensure data consistency
-	err = database.DB.Transaction(func(dbTx *gorm.DB) error {
+	err = database.UploaderDB.Transaction(func(dbTx *gorm.DB) error {
 		// Check if FileId already exists
 		var existingFile model.File
 		err := dbTx.Where("file_id = ?", fileId).First(&existingFile).Error

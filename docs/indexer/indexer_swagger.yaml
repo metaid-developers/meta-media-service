@@ -1,0 +1,382 @@
+basePath: /api/v1
+definitions:
+  meta-media-service_controller_respond.Response:
+    description: Unified API response structure
+    properties:
+      code:
+        example: 0
+        type: integer
+      data: {}
+      message:
+        example: success
+        type: string
+      processingTime:
+        example: 123
+        type: integer
+    type: object
+  model.IndexerFile:
+    properties:
+      block_height:
+        description: Block height
+        type: integer
+      chain_name:
+        description: Blockchain related fields
+        type: string
+      content_type:
+        description: Content type
+        type: string
+      created_at:
+        description: Timestamps
+        type: string
+      creator_address:
+        description: Creator address
+        type: string
+      creator_meta_id:
+        description: Creator MetaID (SHA256 hash)
+        type: string
+      encryption:
+        description: Encryption method
+        type: string
+      file_md5:
+        description: File MD5
+        type: string
+      file_name:
+        description: File related fields
+        type: string
+      file_size:
+        description: File size
+        type: integer
+      id:
+        type: integer
+      operation:
+        description: create/modify/revoke
+        type: string
+      parent_path:
+        description: Parent path
+        type: string
+      path:
+        description: MetaID path
+        type: string
+      pin_id:
+        description: MetaID related fields
+        type: string
+      state:
+        description: State 0:EXIST,2:DELETED
+        type: integer
+      status:
+        allOf:
+        - $ref: '#/definitions/model.Status'
+        description: Status fields
+      storage_path:
+        description: Storage path
+        type: string
+      storage_type:
+        description: Storage related fields
+        type: string
+      timestamp:
+        description: Timestamp (seconds since epoch)
+        type: integer
+      tx_id:
+        description: Transaction ID
+        type: string
+      updated_at:
+        description: Update time
+        type: string
+      version:
+        description: Version
+        type: string
+      vout:
+        description: Output index
+        type: integer
+    type: object
+  model.IndexerSyncStatus:
+    properties:
+      chain_name:
+        description: Chain information
+        type: string
+      created_at:
+        description: Timestamps
+        type: string
+      current_sync_height:
+        description: Sync status
+        type: integer
+      id:
+        type: integer
+      updated_at:
+        description: Update time
+        type: string
+    type: object
+  model.Status:
+    enum:
+    - pending
+    - success
+    - failed
+    type: string
+    x-enum-varnames:
+    - StatusPending
+    - StatusSuccess
+    - StatusFailed
+host: localhost:7281
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Meta Media Indexer Service API, provides file query and download functionality
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Meta Media Indexer API
+  version: "1.0"
+paths:
+  /files:
+    get:
+      consumes:
+      - application/json
+      description: Query file list with cursor pagination
+      parameters:
+      - default: 0
+        description: Cursor (last file ID)
+        in: query
+        name: cursor
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/meta-media-service_controller_respond.Response'
+            - properties:
+                data:
+                  properties:
+                    files:
+                      items:
+                        $ref: '#/definitions/model.IndexerFile'
+                      type: array
+                    has_more:
+                      type: boolean
+                    next_cursor:
+                      type: integer
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+      summary: Query file list
+      tags:
+      - Indexer File Query
+  /files/{pinId}:
+    get:
+      consumes:
+      - application/json
+      description: Query file details by PIN ID
+      parameters:
+      - description: PIN ID
+        in: path
+        name: pinId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/meta-media-service_controller_respond.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.IndexerFile'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+      summary: Get file by PIN ID
+      tags:
+      - Indexer File Query
+  /files/{pinId}/content:
+    get:
+      consumes:
+      - application/json
+      description: Get file content by PIN ID
+      parameters:
+      - description: PIN ID
+        in: path
+        name: pinId
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+      summary: Get file content
+      tags:
+      - Indexer File Query
+  /files/creator/{address}:
+    get:
+      consumes:
+      - application/json
+      description: Query file list by creator address with cursor pagination
+      parameters:
+      - description: Creator address
+        in: path
+        name: address
+        required: true
+        type: string
+      - default: 0
+        description: Cursor (last file ID)
+        in: query
+        name: cursor
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/meta-media-service_controller_respond.Response'
+            - properties:
+                data:
+                  properties:
+                    files:
+                      items:
+                        $ref: '#/definitions/model.IndexerFile'
+                      type: array
+                    has_more:
+                      type: boolean
+                    next_cursor:
+                      type: integer
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+      summary: Get files by creator address
+      tags:
+      - Indexer File Query
+  /files/metaid/{metaId}:
+    get:
+      consumes:
+      - application/json
+      description: Query file list by creator MetaID with cursor pagination
+      parameters:
+      - description: Creator MetaID
+        in: path
+        name: metaId
+        required: true
+        type: string
+      - default: 0
+        description: Cursor (last file ID)
+        in: query
+        name: cursor
+        type: integer
+      - default: 20
+        description: Page size
+        in: query
+        name: size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/meta-media-service_controller_respond.Response'
+            - properties:
+                data:
+                  properties:
+                    files:
+                      items:
+                        $ref: '#/definitions/model.IndexerFile'
+                      type: array
+                    has_more:
+                      type: boolean
+                    next_cursor:
+                      type: integer
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+      summary: Get files by creator MetaID
+      tags:
+      - Indexer File Query
+  /stats:
+    get:
+      consumes:
+      - application/json
+      description: Get indexer statistics (total files count, etc.)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/meta-media-service_controller_respond.Response'
+            - properties:
+                data:
+                  additionalProperties: true
+                  type: object
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+      summary: Get statistics
+      tags:
+      - Indexer Status
+  /status:
+    get:
+      consumes:
+      - application/json
+      description: Get indexer synchronization status
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/meta-media-service_controller_respond.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/model.IndexerSyncStatus'
+              type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/meta-media-service_controller_respond.Response'
+      summary: Get sync status
+      tags:
+      - Indexer Status
+schemes:
+- http
+- https
+swagger: "2.0"

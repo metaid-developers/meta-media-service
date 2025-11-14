@@ -1,41 +1,43 @@
-# 二进制文件
+# binary files
 /bin/
 *.exe
 *.dll
 *.so
 *.dylib
 
-# 测试文件
+# test files
 *.test
 *.out
 
-# 依赖目录
+# dependency directories
 /vendor/
 /web/node_modules/
 /web/package-lock.json
 
-# IDE 相关
+# IDE related
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# 配置文件
+# configuration files
 /conf/conf_*
 !conf/conf_example.yaml
 
 
-# 数据目录
+# data directories
 /data/
 
-# 日志文件
+# log files
 *.log
 
-# OS 相关
+# OS related
 .DS_Store
 Thumbs.db
 
-# 临时文件
+# temporary files
 tmp/
 temp/
+
+nginx.d

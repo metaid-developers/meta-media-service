@@ -15,7 +15,7 @@ services:
     command: ["--env=${ENV:-mainnet}"]
     volumes:
       - ../conf:/app/conf:ro
-      - indexer_data:/app/data
+      - ../../indexer_pebble_data:/app/indexer_pebble_data
     networks:
       - meta-media-network
     healthcheck:
@@ -31,4 +31,5 @@ volumes:
 networks:
   meta-media-network:
     driver: bridge
+    name: meta-media-indexer-network  # Independent network for indexer
 

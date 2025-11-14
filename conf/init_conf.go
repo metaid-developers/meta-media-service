@@ -32,9 +32,11 @@ type Config struct {
 
 // DatabaseConfig database configuration
 type DatabaseConfig struct {
-	Dsn          string
-	MaxOpenConns int
-	MaxIdleConns int
+	IndexerType  string // Indexer database type: mysql, pebble
+	Dsn          string // MySQL DSN
+	MaxOpenConns int    // MySQL max open connections
+	MaxIdleConns int    // MySQL max idle connections
+	DataDir      string // PebbleDB data directory
 }
 
 // ChainConfig blockchain configuration
@@ -67,10 +69,14 @@ type OSSStorageConfig struct {
 
 // IndexerConfig indexer configuration
 type IndexerConfig struct {
-	ScanInterval   int
-	BatchSize      int
-	StartHeight    int64
-	SwaggerBaseUrl string // Swagger API base URL (e.g., "example.com:7281")
+	ScanInterval       int
+	BatchSize          int
+	StartHeight        int64
+	MvcInitBlockHeight int64  // MVC chain initial block height to start scanning from
+	BtcInitBlockHeight int64  // BTC chain initial block height to start scanning from
+	SwaggerBaseUrl     string // Swagger API base URL (e.g., "example.com:7281")
+	ZmqEnabled         bool   // Enable ZMQ real-time monitoring
+	ZmqAddress         string // ZMQ server address (e.g., "tcp://127.0.0.1:28332")
 }
 
 // UploaderConfig uploader configuration
@@ -108,9 +114,11 @@ func InitConfig() error {
 		UploaderPort: viper.GetString("uploader.port"),
 
 		Database: DatabaseConfig{
-			Dsn:          viper.GetString("rds.dsn"),
-			MaxOpenConns: viper.GetInt("rds.max_open_conns"),
-			MaxIdleConns: viper.GetInt("rds.max_idle_conns"),
+			IndexerType:  viper.GetString("database.indexer_type"),
+			Dsn:          viper.GetString("database.dsn"),
+			MaxOpenConns: viper.GetInt("database.max_open_conns"),
+			MaxIdleConns: viper.GetInt("database.max_idle_conns"),
+			DataDir:      viper.GetString("database.data_dir"),
 		},
 
 		Chain: ChainConfig{
@@ -134,10 +142,14 @@ func InitConfig() error {
 		},
 
 		Indexer: IndexerConfig{
-			ScanInterval:   viper.GetInt("indexer.scan_interval"),
-			BatchSize:      viper.GetInt("indexer.batch_size"),
-			StartHeight:    viper.GetInt64("indexer.start_height"),
-			SwaggerBaseUrl: viper.GetString("indexer.swagger_base_url"),
+			ScanInterval:       viper.GetInt("indexer.scan_interval"),
+			BatchSize:          viper.GetInt("indexer.batch_size"),
+			StartHeight:        viper.GetInt64("indexer.start_height"),
+			MvcInitBlockHeight: viper.GetInt64("indexer.mvc_init_block_height"),
+			BtcInitBlockHeight: viper.GetInt64("indexer.btc_init_block_height"),
+			SwaggerBaseUrl:     viper.GetString("indexer.swagger_base_url"),
+			ZmqEnabled:         viper.GetBool("indexer.zmq_enabled"),
+			ZmqAddress:         viper.GetString("indexer.zmq_address"),
 		},
 
 		Uploader: UploaderConfig{

@@ -13,10 +13,11 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var DB *gorm.DB
+// UploaderDB global GORM database instance for Uploader service (always MySQL)
+var UploaderDB *gorm.DB
 
-// InitDB initialize database connection
-func InitDB() error {
+// InitUploaderDB initialize Uploader database (always MySQL)
+func InitUploaderDB() error {
 	var err error
 
 	// Build DSN
@@ -26,7 +27,7 @@ func InitDB() error {
 	}
 
 	// Connect database
-	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
+	UploaderDB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {
@@ -34,7 +35,7 @@ func InitDB() error {
 	}
 
 	// Get underlying sql.DB
-	sqlDB, err := DB.DB()
+	sqlDB, err := UploaderDB.DB()
 	if err != nil {
 		return fmt.Errorf("failed to get sql.DB: %w", err)
 	}
@@ -44,27 +45,25 @@ func InitDB() error {
 	sqlDB.SetMaxIdleConns(conf.Cfg.Database.MaxIdleConns)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
-	// Auto migration
-	// if err := autoMigrate(); err != nil {
-	// 	return fmt.Errorf("failed to auto migrate: %w", err)
-	// }
-
-	log.Println("Database connected successfully")
+	log.Println("Uploader database (MySQL) connected successfully")
 	return nil
 }
 
-// autoMigrate auto migrate database table structure
-func autoMigrate() error {
-	return DB.AutoMigrate(
+// AutoMigrate auto migrate database table structure for Uploader
+func AutoMigrate() error {
+	return UploaderDB.AutoMigrate(
 		&model.File{},
 		&model.FileChunk{},
 		&model.Assistant{},
 	)
 }
 
-// CloseDB close database connection
-func CloseDB() error {
-	sqlDB, err := DB.DB()
+// CloseUploaderDB close Uploader database connection
+func CloseUploaderDB() error {
+	if UploaderDB == nil {
+		return nil
+	}
+	sqlDB, err := UploaderDB.DB()
 	if err != nil {
 		return err
 	}

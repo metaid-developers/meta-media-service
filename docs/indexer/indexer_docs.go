@@ -26,7 +26,7 @@ const docTemplateindexer = `{
     "paths": {
         "/files": {
             "get": {
-                "description": "Query file list with pagination",
+                "description": "Query file list with cursor pagination",
                 "consumes": [
                     "application/json"
                 ],
@@ -34,22 +34,22 @@ const docTemplateindexer = `{
                     "application/json"
                 ],
                 "tags": [
-                    "File Query"
+                    "Indexer File Query"
                 ],
                 "summary": "Query file list",
                 "parameters": [
                     {
                         "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
+                        "default": 0,
+                        "description": "Cursor (last file ID)",
+                        "name": "cursor",
                         "in": "query"
                     },
                     {
                         "type": "integer",
                         "default": 20,
                         "description": "Page size",
-                        "name": "page_size",
+                        "name": "size",
                         "in": "query"
                     }
                 ],
@@ -70,16 +70,13 @@ const docTemplateindexer = `{
                                                 "files": {
                                                     "type": "array",
                                                     "items": {
-                                                        "$ref": "#/definitions/model.File"
+                                                        "$ref": "#/definitions/model.IndexerFile"
                                                     }
                                                 },
-                                                "page": {
-                                                    "type": "integer"
+                                                "has_more": {
+                                                    "type": "boolean"
                                                 },
-                                                "page_size": {
-                                                    "type": "integer"
-                                                },
-                                                "total": {
+                                                "next_cursor": {
                                                     "type": "integer"
                                                 }
                                             }
@@ -98,9 +95,9 @@ const docTemplateindexer = `{
                 }
             }
         },
-        "/files/path/{path}": {
+        "/files/creator/{address}": {
             "get": {
-                "description": "Query file details by file path",
+                "description": "Query file list by creator address with cursor pagination",
                 "consumes": [
                     "application/json"
                 ],
@@ -108,14 +105,170 @@ const docTemplateindexer = `{
                     "application/json"
                 ],
                 "tags": [
-                    "File Query"
+                    "Indexer File Query"
                 ],
-                "summary": "Get file by path",
+                "summary": "Get files by creator address",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "File path",
-                        "name": "path",
+                        "description": "Creator address",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Cursor (last file ID)",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "files": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/model.IndexerFile"
+                                                    }
+                                                },
+                                                "has_more": {
+                                                    "type": "boolean"
+                                                },
+                                                "next_cursor": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/files/metaid/{metaId}": {
+            "get": {
+                "description": "Query file list by creator MetaID with cursor pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Indexer File Query"
+                ],
+                "summary": "Get files by creator MetaID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Creator MetaID",
+                        "name": "metaId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Cursor (last file ID)",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "files": {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "$ref": "#/definitions/model.IndexerFile"
+                                                    }
+                                                },
+                                                "has_more": {
+                                                    "type": "boolean"
+                                                },
+                                                "next_cursor": {
+                                                    "type": "integer"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/files/{pinId}": {
+            "get": {
+                "description": "Query file details by PIN ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Indexer File Query"
+                ],
+                "summary": "Get file by PIN ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "PIN ID",
+                        "name": "pinId",
                         "in": "path",
                         "required": true
                     }
@@ -132,7 +285,7 @@ const docTemplateindexer = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/model.File"
+                                            "$ref": "#/definitions/model.IndexerFile"
                                         }
                                     }
                                 }
@@ -148,59 +301,9 @@ const docTemplateindexer = `{
                 }
             }
         },
-        "/files/{txid}": {
+        "/files/{pinId}/content": {
             "get": {
-                "description": "Query file details by transaction ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "File Query"
-                ],
-                "summary": "Get file by transaction ID",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Transaction ID",
-                        "name": "txid",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/meta-media-service_controller_respond.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/model.File"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/files/{txid}/content": {
-            "get": {
-                "description": "Download file content by transaction ID",
+                "description": "Get file content by PIN ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -208,14 +311,14 @@ const docTemplateindexer = `{
                     "application/octet-stream"
                 ],
                 "tags": [
-                    "File Download"
+                    "Indexer File Query"
                 ],
-                "summary": "Download file content",
+                "summary": "Get file content",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Transaction ID",
-                        "name": "txid",
+                        "description": "PIN ID",
+                        "name": "pinId",
                         "in": "path",
                         "required": true
                     }
@@ -231,6 +334,83 @@ const docTemplateindexer = `{
                         "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/stats": {
+            "get": {
+                "description": "Get indexer statistics (total files count, etc.)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Indexer Status"
+                ],
+                "summary": "Get statistics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "additionalProperties": true
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/status": {
+            "get": {
+                "description": "Get indexer synchronization status",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Indexer Status"
+                ],
+                "summary": "Get sync status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/model.IndexerSyncStatus"
+                                        }
+                                    }
+                                }
+                            ]
                         }
                     },
                     "500": {
@@ -263,37 +443,15 @@ const docTemplateindexer = `{
                 }
             }
         },
-        "model.ChunkType": {
-            "type": "string",
-            "enum": [
-                "single",
-                "multi"
-            ],
-            "x-enum-varnames": [
-                "ChunkTypeSingle",
-                "ChunkTypeMulti"
-            ]
-        },
-        "model.File": {
+        "model.IndexerFile": {
             "type": "object",
             "properties": {
-                "address": {
-                    "type": "string"
-                },
                 "block_height": {
                     "description": "Block height",
                     "type": "integer"
                 },
-                "chunk_type": {
-                    "description": "single/multi",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/model.ChunkType"
-                        }
-                    ]
-                },
-                "content_hex": {
-                    "description": "Content hexadecimal",
+                "chain_name": {
+                    "description": "Blockchain related fields",
                     "type": "string"
                 },
                 "content_type": {
@@ -301,19 +459,19 @@ const docTemplateindexer = `{
                     "type": "string"
                 },
                 "created_at": {
-                    "description": "Creation time",
+                    "description": "Timestamps",
                     "type": "string"
                 },
-                "file_content_type": {
-                    "description": "File content type",
+                "creator_address": {
+                    "description": "Creator address",
                     "type": "string"
                 },
-                "file_hash": {
-                    "description": "File hash",
+                "creator_meta_id": {
+                    "description": "Creator MetaID (SHA256 hash)",
                     "type": "string"
                 },
-                "file_id": {
-                    "description": "metaid_filehash",
+                "encryption": {
+                    "description": "Encryption method",
                     "type": "string"
                 },
                 "file_md5": {
@@ -321,26 +479,22 @@ const docTemplateindexer = `{
                     "type": "string"
                 },
                 "file_name": {
-                    "description": "File name",
+                    "description": "File related fields",
                     "type": "string"
                 },
                 "file_size": {
                     "description": "File size",
                     "type": "integer"
                 },
-                "file_type": {
-                    "description": "image/video/audio/document/other",
-                    "type": "string"
-                },
                 "id": {
                     "type": "integer"
                 },
-                "meta_id": {
-                    "description": "MetaID",
-                    "type": "string"
-                },
                 "operation": {
                     "description": "create/modify/revoke",
+                    "type": "string"
+                },
+                "parent_path": {
+                    "description": "Parent path",
                     "type": "string"
                 },
                 "path": {
@@ -348,11 +502,7 @@ const docTemplateindexer = `{
                     "type": "string"
                 },
                 "pin_id": {
-                    "description": "Pin ID",
-                    "type": "string"
-                },
-                "pre_tx_raw": {
-                    "description": "Pre-transaction raw data",
+                    "description": "MetaID related fields",
                     "type": "string"
                 },
                 "state": {
@@ -360,7 +510,7 @@ const docTemplateindexer = `{
                     "type": "integer"
                 },
                 "status": {
-                    "description": "pending/success/failed",
+                    "description": "Status fields",
                     "allOf": [
                         {
                             "$ref": "#/definitions/model.Status"
@@ -372,16 +522,48 @@ const docTemplateindexer = `{
                     "type": "string"
                 },
                 "storage_type": {
-                    "description": "local/oss",
+                    "description": "Storage related fields",
                     "type": "string"
+                },
+                "timestamp": {
+                    "description": "Timestamp (seconds since epoch)",
+                    "type": "integer"
                 },
                 "tx_id": {
-                    "description": "On-chain transaction ID",
+                    "description": "Transaction ID",
                     "type": "string"
                 },
-                "tx_raw": {
-                    "description": "Transaction raw data",
+                "updated_at": {
+                    "description": "Update time",
                     "type": "string"
+                },
+                "version": {
+                    "description": "Version",
+                    "type": "string"
+                },
+                "vout": {
+                    "description": "Output index",
+                    "type": "integer"
+                }
+            }
+        },
+        "model.IndexerSyncStatus": {
+            "type": "object",
+            "properties": {
+                "chain_name": {
+                    "description": "Chain information",
+                    "type": "string"
+                },
+                "created_at": {
+                    "description": "Timestamps",
+                    "type": "string"
+                },
+                "current_sync_height": {
+                    "description": "Sync status",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
                 },
                 "updated_at": {
                     "description": "Update time",

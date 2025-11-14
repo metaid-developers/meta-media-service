@@ -1,157 +1,193 @@
--- Meta Media Service - Indexer Service Database Initialization Script
--- =============================================
--- File table (tb_file) - read-only view for query
--- =============================================
--- Indexer service mainly indexes data from blockchain to this table
--- table structure same as Uploader, ensures data consistency
+-- ============================================
+-- MetaID Indexer Database Schema
+-- ============================================
+-- This file contains all table definitions for the Indexer service
+-- Tables: tb_indexer_file, tb_indexer_file_chunk, tb_indexer_user_avatar, tb_indexer_sync_status
+-- ============================================
 
-CREATE TABLE IF NOT EXISTS `tb_file` (
+-- --------------------------------------------
+-- Table: tb_indexer_file
+-- Description: Stores indexed file metadata from blockchain
+-- --------------------------------------------
+CREATE TABLE IF NOT EXISTS `tb_indexer_file` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'Primary key ID',
     
-    -- File identifiers
-    `file_id` VARCHAR(255) DEFAULT NULL COMMENT 'File unique ID (metaid_fileHash)',
-    `file_name` VARCHAR(255) DEFAULT NULL COMMENT 'File name',
+    -- MetaID related fields
+    `pin_id` VARCHAR(255) NOT NULL COMMENT 'PIN ID (txid + i + vout)',
+    `tx_id` VARCHAR(64) NOT NULL COMMENT 'Transaction ID',
+    `vout` INT NOT NULL COMMENT 'Output index',
+    `path` VARCHAR(500) NOT NULL COMMENT 'MetaID path',
+    `operation` VARCHAR(20) NOT NULL COMMENT 'Operation: create/modify/revoke',
+    `parent_path` VARCHAR(500) DEFAULT '' COMMENT 'Parent path',
+    `encryption` VARCHAR(50) DEFAULT '0' COMMENT 'Encryption method',
+    `version` VARCHAR(50) DEFAULT '0' COMMENT 'Version',
+    `content_type` VARCHAR(100) DEFAULT '' COMMENT 'Content type',
     
-    -- File information
-    `file_hash` VARCHAR(255) DEFAULT NULL COMMENT 'File hash (SHA256)',
-    `file_size` BIGINT DEFAULT NULL COMMENT 'File size (bytes))',
-    `file_type` VARCHAR(20) DEFAULT NULL COMMENT 'File type',
-    `file_md5` VARCHAR(255) DEFAULT NULL COMMENT 'File MD5',
-    `file_content_type` VARCHAR(100) DEFAULT NULL COMMENT 'File content type',
-    `chunk_type` VARCHAR(20) DEFAULT NULL COMMENT 'Chunk type (single/multi)',
+    -- File related fields
+    `file_type` VARCHAR(20) DEFAULT '' COMMENT 'File type: image/video/audio/document/text/archive/data/other',
+    `file_extension` VARCHAR(10) DEFAULT '' COMMENT 'File extension: .jpg, .png, .mp4, .pdf, etc.',
+    `file_name` VARCHAR(255) DEFAULT '' COMMENT 'File name (extracted from path)',
+    `file_size` BIGINT DEFAULT 0 COMMENT 'File size (bytes)',
+    `file_md5` VARCHAR(64) DEFAULT '' COMMENT 'File MD5 hash',
+    `file_hash` VARCHAR(64) DEFAULT '' COMMENT 'File SHA256 hash',
     
-    -- Content
-    `content_hex` TEXT COMMENT 'Content hexadecimal',
+    -- Storage related fields
+    `storage_type` VARCHAR(20) DEFAULT 'local' COMMENT 'Storage type: local/oss',
+    `storage_path` VARCHAR(500) DEFAULT '' COMMENT 'Storage path',
+    
+    -- Blockchain related fields
+    `chain_name` VARCHAR(20) NOT NULL COMMENT 'Chain name: btc/mvc',
+    `block_height` BIGINT NOT NULL COMMENT 'Block height',
+    `timestamp` BIGINT NOT NULL COMMENT 'Block timestamp (seconds since epoch)',
+    `creator_meta_id` VARCHAR(64) DEFAULT '' COMMENT 'Creator MetaID (SHA256 of address)',
+    `creator_address` VARCHAR(100) DEFAULT '' COMMENT 'Creator address',
+    `owner_address` VARCHAR(100) DEFAULT '' COMMENT 'Owner address (current)',
+    `owner_meta_id` VARCHAR(64) DEFAULT '' COMMENT 'Owner MetaID (SHA256 of owner address)',
+    
+    -- Status fields
+    `status` VARCHAR(20) DEFAULT 'success' COMMENT 'Status: success/failed',
+    `state` INT(11) DEFAULT 0 COMMENT 'State: 0=EXIST, 2=DELETED',
+    
+    -- Timestamps
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Update time',
+    
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_pin_id` (`pin_id`),
+    KEY `idx_tx_id` (`tx_id`),
+    KEY `idx_path` (`path`(255)),
+    KEY `idx_block_height` (`block_height`),
+    KEY `idx_creator_address` (`creator_address`),
+    KEY `idx_creator_meta_id` (`creator_meta_id`),
+    KEY `idx_owner_address` (`owner_address`),
+    KEY `idx_chain_name` (`chain_name`),
+    KEY `idx_timestamp` (`timestamp`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Indexer file metadata table';
+
+-- --------------------------------------------
+-- Table: tb_indexer_file_chunk
+-- Description: Stores indexed file chunk metadata (for large files split into chunks)
+-- --------------------------------------------
+CREATE TABLE IF NOT EXISTS `tb_indexer_file_chunk` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'Primary key ID',
+    
+    -- MetaID related fields
+    `pin_id` VARCHAR(255) NOT NULL COMMENT 'PIN ID (txid + i + vout)',
+    `tx_id` VARCHAR(64) NOT NULL COMMENT 'Transaction ID',
+    `vout` INT NOT NULL COMMENT 'Output index',
+    `path` VARCHAR(500) NOT NULL COMMENT 'MetaID path',
+    `operation` VARCHAR(20) NOT NULL COMMENT 'Operation: create/modify/revoke',
+    `content_type` VARCHAR(100) DEFAULT '' COMMENT 'Content type',
+    
+    -- Chunk related fields
+    `chunk_index` INT NOT NULL COMMENT 'Chunk index (0-based)',
+    `chunk_size` BIGINT DEFAULT 0 COMMENT 'Chunk size (bytes)',
+    `chunk_md5` VARCHAR(64) DEFAULT '' COMMENT 'Chunk MD5 hash',
+    `parent_pin_id` VARCHAR(255) NOT NULL COMMENT 'Parent file PIN ID',
+    
+    -- Storage related fields
+    `storage_type` VARCHAR(20) DEFAULT 'local' COMMENT 'Storage type: local/oss',
+    `storage_path` VARCHAR(500) DEFAULT '' COMMENT 'Storage path',
+    
+    -- Blockchain related fields
+    `chain_name` VARCHAR(20) NOT NULL COMMENT 'Chain name: btc/mvc',
+    `block_height` BIGINT NOT NULL COMMENT 'Block height',
+    
+    -- Status fields
+    `status` VARCHAR(20) DEFAULT 'success' COMMENT 'Status: success/failed',
+    `state` INT(11) DEFAULT 0 COMMENT 'State: 0=EXIST, 2=DELETED',
+    
+    -- Timestamps
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Update time',
+    
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_pin_id` (`pin_id`),
+    KEY `idx_tx_id` (`tx_id`),
+    KEY `idx_path` (`path`(255)),
+    KEY `idx_parent_pin_id` (`parent_pin_id`),
+    KEY `idx_block_height` (`block_height`),
+    KEY `idx_chain_name` (`chain_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Indexer file chunk metadata table';
+
+-- --------------------------------------------
+-- Table: tb_indexer_user_avatar
+-- Description: Stores user avatar metadata indexed from blockchain
+-- --------------------------------------------
+CREATE TABLE IF NOT EXISTS `tb_indexer_user_avatar` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'Primary key ID',
+    
+    -- PIN information
+    `pin_id` VARCHAR(255) NOT NULL COMMENT 'PIN ID (unique identifier)',
+    `tx_id` VARCHAR(100) NOT NULL COMMENT 'Transaction ID',
     
     -- MetaID information
-    `meta_id` VARCHAR(255) DEFAULT NULL COMMENT 'MetaID',
-    `address` VARCHAR(255) DEFAULT NULL COMMENT 'Address',
+    `meta_id` VARCHAR(100) NOT NULL COMMENT 'Meta ID (SHA256 of address)',
+    `address` VARCHAR(100) NOT NULL COMMENT 'User address',
     
-    -- Transaction information
-    `tx_id` VARCHAR(64) DEFAULT NULL COMMENT 'On-chain transaction ID',
-    `pin_id` VARCHAR(255) NOT NULL COMMENT 'Pin ID',
-    `path` VARCHAR(255) NOT NULL COMMENT 'MetaID path',
-    `content_type` VARCHAR(100) DEFAULT NULL COMMENT 'Content type',
-    `operation` VARCHAR(20) DEFAULT NULL COMMENT 'Operation type',
+    -- Avatar information
+    `avatar` VARCHAR(500) NOT NULL COMMENT 'Avatar storage path or URL',
+    `content_type` VARCHAR(100) DEFAULT '' COMMENT 'Content type (e.g., image/jpeg)',
+    `file_size` BIGINT DEFAULT 0 COMMENT 'File size (bytes)',
+    `file_md5` VARCHAR(64) DEFAULT '' COMMENT 'File MD5 hash',
+    `file_hash` VARCHAR(64) DEFAULT '' COMMENT 'File SHA256 hash',
+    `file_extension` VARCHAR(10) DEFAULT '' COMMENT 'File extension: .jpg, .png, etc.',
+    `file_type` VARCHAR(20) DEFAULT '' COMMENT 'File type: image/video/audio/other',
     
-    -- Storage information
-    `storage_type` VARCHAR(20) DEFAULT NULL COMMENT 'Storage type',
-    `storage_path` VARCHAR(500) DEFAULT NULL COMMENT 'Storage path',
-    
-    -- Transaction data
-    `pre_tx_raw` TEXT COMMENT 'Pre-transaction raw data',
-    `tx_raw` TEXT COMMENT 'Transaction raw data',
-    `status` VARCHAR(20) DEFAULT NULL COMMENT 'Status',
-    
-    -- Block information
-    `block_height` BIGINT DEFAULT NULL COMMENT 'Block height',
+    -- Chain information
+    `chain_name` VARCHAR(20) NOT NULL COMMENT 'Chain name: btc/mvc',
+    `block_height` BIGINT NOT NULL COMMENT 'Block height',
+    `timestamp` BIGINT NOT NULL COMMENT 'Block timestamp (seconds since epoch)',
     
     -- Timestamps
-    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
-    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Update time',
-    `state` INT(11) DEFAULT 0 COMMENT 'Status',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Update time',
     
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_file_id` (`file_id`),
-    UNIQUE KEY `uk_tx_id` (`tx_id`),
-    KEY `idx_pin_id` (`pin_id`),
-    KEY `idx_path` (`path`),
+    UNIQUE KEY `uk_pin_id` (`pin_id`),
+    KEY `idx_tx_id` (`tx_id`),
     KEY `idx_meta_id` (`meta_id`),
+    KEY `idx_address` (`address`),
+    KEY `idx_chain_name` (`chain_name`),
     KEY `idx_block_height` (`block_height`),
-    KEY `idx_status` (`status`),
-    KEY `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='File metadata table(Indexerfor query)';
+    KEY `idx_timestamp` (`timestamp`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Indexer user avatar table';
 
--- =============================================
--- File chunk table (tb_file_chunk) - Indexer query use
--- =============================================
-CREATE TABLE IF NOT EXISTS `tb_file_chunk` (
+-- --------------------------------------------
+-- Table: tb_indexer_sync_status
+-- Description: Stores blockchain synchronization status for each chain
+-- --------------------------------------------
+CREATE TABLE IF NOT EXISTS `tb_indexer_sync_status` (
     `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'Primary key ID',
     
-    -- Chunk information
-    `chunk_hash` VARCHAR(80) DEFAULT NULL COMMENT 'Chunk hash',
-    `chunk_size` BIGINT DEFAULT NULL COMMENT 'Chunk size',
-    `chunk_md5` VARCHAR(191) DEFAULT NULL COMMENT 'Chunk MD5',
-    `chunk_index` BIGINT DEFAULT NULL COMMENT 'Chunk index',
-    `file_hash` VARCHAR(80) DEFAULT NULL COMMENT 'Belonging file hash',
+    -- Chain information
+    `chain_name` VARCHAR(20) NOT NULL COMMENT 'Chain name: btc/mvc',
     
-    -- Content
-    `content_hex` TEXT COMMENT 'Content hexadecimal',
-    
-    -- Transaction information
-    `tx_id` VARCHAR(64) NOT NULL COMMENT 'On-chain transaction ID',
-    `pin_id` VARCHAR(80) NOT NULL COMMENT 'Pin ID',
-    `path` VARCHAR(191) NOT NULL COMMENT 'MetaID path',
-    `content_type` VARCHAR(100) DEFAULT NULL COMMENT 'Content type',
-    `size` BIGINT DEFAULT NULL COMMENT 'Size',
-    `operation` VARCHAR(20) DEFAULT NULL COMMENT 'Operation type',
-    
-    -- Storage information
-    `storage_type` VARCHAR(20) DEFAULT NULL COMMENT 'Storage type',
-    `storage_path` VARCHAR(500) DEFAULT NULL COMMENT 'Storage path',
-    
-    -- Transaction data
-    `tx_raw` TEXT COMMENT 'Transaction raw data',
-    `status` VARCHAR(20) DEFAULT NULL COMMENT 'Status',
-    
-    -- Block information
-    `block_height` BIGINT DEFAULT NULL COMMENT 'Block height',
+    -- Sync status
+    `current_sync_height` BIGINT NOT NULL DEFAULT 0 COMMENT 'Current scanned block height',
     
     -- Timestamps
-    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
-    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Update time',
-    `state` INT(11) DEFAULT 0 COMMENT 'Status',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Update time',
     
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_tx_id` (`tx_id`),
-    KEY `idx_pin_id` (`pin_id`),
-    KEY `idx_path` (`path`),
-    KEY `idx_file_hash` (`file_hash`),
-    KEY `idx_chunk_index` (`chunk_index`),
-    KEY `idx_block_height` (`block_height`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='File chunk table(Indexerfor query)';
+    UNIQUE KEY `uk_chain_name` (`chain_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Indexer synchronization status table';
 
--- =============================================
--- Index notes
--- =============================================
--- Note:
--- 1. VARCHAR field length limited to within characters(utf8mb4 index limit under 767 bytes)
--- 2. use prefix index for extra long fields，e.g. idx_pin_id (pin_id(100))
--- 3. unique index fields must control length within
+-- --------------------------------------------
+-- Initialize default sync status records
+-- --------------------------------------------
 
--- =============================================
--- Composite index optimization(optional, add based on query needs)
--- =============================================
--- query all files by user(by time descending)
--- ALTER TABLE tb_file ADD INDEX idx_meta_id_created (meta_id, created_at DESC);
+-- Insert default status for MVC chain
+INSERT INTO `tb_indexer_sync_status` (`chain_name`, `current_sync_height`)
+VALUES ('mvc', 0)
+ON DUPLICATE KEY UPDATE `chain_name` = `chain_name`;
 
--- query files by specific path
--- ALTER TABLE tb_file ADD INDEX idx_path_status (path(100), status);
+-- Insert default status for BTC chain
+INSERT INTO `tb_indexer_sync_status` (`chain_name`, `current_sync_height`)
+VALUES ('btc', 0)
+ON DUPLICATE KEY UPDATE `chain_name` = `chain_name`;
 
--- query files by specific block height
--- ALTER TABLE tb_file ADD INDEX idx_height_created (block_height, created_at DESC);
-
--- statistics analysis index
--- ALTER TABLE tb_file ADD INDEX idx_file_type_status (file_type, status);
-
--- =============================================
--- View(optional)- for easy querying
--- =============================================
--- successful files view
--- CREATE OR REPLACE VIEW v_success_files AS
--- SELECT 
---     id, file_id, file_name, file_hash, file_size, file_type,
---     meta_id, address, tx_id, path, operation,
---     block_height, created_at
--- FROM tb_file
--- WHERE status = 'success' AND state = 0;
-
--- pending files view
--- CREATE OR REPLACE VIEW v_pending_files AS
--- SELECT 
---     id, file_id, file_name, file_hash, file_size,
---     meta_id, address, path, operation,
---     created_at, updated_at
--- FROM tb_file
--- WHERE status = 'pending' AND state = 0;
-
+-- ============================================
+-- End of Indexer Database Schema
+-- ============================================
