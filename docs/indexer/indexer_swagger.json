@@ -22,6 +22,201 @@
     "host": "localhost:7281",
     "basePath": "/api/v1",
     "paths": {
+        "/avatars": {
+            "get": {
+                "description": "Query avatar list with cursor pagination",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Indexer Avatar Query"
+                ],
+                "summary": "Query avatar list",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Cursor (last avatar ID)",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "Page size",
+                        "name": "size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/meta-media-service_controller_respond.IndexerAvatarListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/avatars/address/{address}": {
+            "get": {
+                "description": "Query the latest avatar information by address",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Indexer Avatar Query"
+                ],
+                "summary": "Get latest avatar by address",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Address",
+                        "name": "address",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/meta-media-service_controller_respond.IndexerAvatarResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/avatars/content/{pinId}": {
+            "get": {
+                "description": "Get avatar content by PIN ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "Indexer Avatar Query"
+                ],
+                "summary": "Get avatar content",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "PIN ID",
+                        "name": "pinId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/avatars/metaid/{metaId}": {
+            "get": {
+                "description": "Query the latest avatar information by MetaID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Indexer Avatar Query"
+                ],
+                "summary": "Get latest avatar by MetaID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "MetaID",
+                        "name": "metaId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/meta-media-service_controller_respond.IndexerAvatarResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        },
         "/files": {
             "get": {
                 "description": "Query file list with cursor pagination",
@@ -63,21 +258,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "files": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "$ref": "#/definitions/model.IndexerFile"
-                                                    }
-                                                },
-                                                "has_more": {
-                                                    "type": "boolean"
-                                                },
-                                                "next_cursor": {
-                                                    "type": "integer"
-                                                }
-                                            }
+                                            "$ref": "#/definitions/meta-media-service_controller_respond.IndexerFileListResponse"
                                         }
                                     }
                                 }
@@ -86,6 +267,44 @@
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
+                        }
+                    }
+                }
+            }
+        },
+        "/files/content/{pinId}": {
+            "get": {
+                "description": "Get file content by PIN ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "Indexer File Query"
+                ],
+                "summary": "Get file content",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "PIN ID",
+                        "name": "pinId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/meta-media-service_controller_respond.Response"
                         }
@@ -141,21 +360,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "files": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "$ref": "#/definitions/model.IndexerFile"
-                                                    }
-                                                },
-                                                "has_more": {
-                                                    "type": "boolean"
-                                                },
-                                                "next_cursor": {
-                                                    "type": "integer"
-                                                }
-                                            }
+                                            "$ref": "#/definitions/meta-media-service_controller_respond.IndexerFileListResponse"
                                         }
                                     }
                                 }
@@ -219,21 +424,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "files": {
-                                                    "type": "array",
-                                                    "items": {
-                                                        "$ref": "#/definitions/model.IndexerFile"
-                                                    }
-                                                },
-                                                "has_more": {
-                                                    "type": "boolean"
-                                                },
-                                                "next_cursor": {
-                                                    "type": "integer"
-                                                }
-                                            }
+                                            "$ref": "#/definitions/meta-media-service_controller_respond.IndexerFileListResponse"
                                         }
                                     }
                                 }
@@ -283,49 +474,11 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/model.IndexerFile"
+                                            "$ref": "#/definitions/meta-media-service_controller_respond.IndexerFileResponse"
                                         }
                                     }
                                 }
                             ]
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/meta-media-service_controller_respond.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/files/{pinId}/content": {
-            "get": {
-                "description": "Get file content by PIN ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/octet-stream"
-                ],
-                "tags": [
-                    "Indexer File Query"
-                ],
-                "summary": "Get file content",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "PIN ID",
-                        "name": "pinId",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "file"
                         }
                     },
                     "404": {
@@ -362,8 +515,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "additionalProperties": true
+                                            "$ref": "#/definitions/meta-media-service_controller_respond.IndexerStatsResponse"
                                         }
                                     }
                                 }
@@ -381,7 +533,7 @@
         },
         "/status": {
             "get": {
-                "description": "Get indexer synchronization status",
+                "description": "Get indexer synchronization status (includes latest block height from node)",
                 "consumes": [
                     "application/json"
                 ],
@@ -404,7 +556,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/model.IndexerSyncStatus"
+                                            "$ref": "#/definitions/meta-media-service_controller_respond.IndexerSyncStatusResponse"
                                         }
                                     }
                                 }
@@ -422,6 +574,232 @@
         }
     },
     "definitions": {
+        "meta-media-service_controller_respond.IndexerAvatarListResponse": {
+            "type": "object",
+            "properties": {
+                "avatars": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/meta-media-service_controller_respond.IndexerAvatarResponse"
+                    }
+                },
+                "has_more": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "next_cursor": {
+                    "type": "integer",
+                    "example": 100
+                }
+            }
+        },
+        "meta-media-service_controller_respond.IndexerAvatarResponse": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+                },
+                "avatar": {
+                    "type": "string",
+                    "example": "indexer/avatar/mvc/xyz789/xyz789i0.jpg"
+                },
+                "block_height": {
+                    "type": "integer",
+                    "example": 12345
+                },
+                "chain_name": {
+                    "type": "string",
+                    "example": "mvc"
+                },
+                "content_type": {
+                    "type": "string",
+                    "example": "image/jpeg"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "file_extension": {
+                    "type": "string",
+                    "example": ".jpg"
+                },
+                "file_hash": {
+                    "type": "string",
+                    "example": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "file_md5": {
+                    "type": "string",
+                    "example": "d41d8cd98f00b204e9800998ecf8427e"
+                },
+                "file_size": {
+                    "type": "integer",
+                    "example": 102400
+                },
+                "file_type": {
+                    "type": "string",
+                    "example": "image"
+                },
+                "meta_id": {
+                    "type": "string",
+                    "example": "abc123def456..."
+                },
+                "pin_id": {
+                    "description": "ID            int64     `json:\"id\" example:\"1\"`",
+                    "type": "string",
+                    "example": "xyz789i0"
+                },
+                "timestamp": {
+                    "type": "integer",
+                    "example": 1699999999
+                },
+                "tx_id": {
+                    "type": "string",
+                    "example": "xyz789"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                }
+            }
+        },
+        "meta-media-service_controller_respond.IndexerFileListResponse": {
+            "type": "object",
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/meta-media-service_controller_respond.IndexerFileResponse"
+                    }
+                },
+                "has_more": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "next_cursor": {
+                    "type": "integer",
+                    "example": 100
+                }
+            }
+        },
+        "meta-media-service_controller_respond.IndexerFileResponse": {
+            "type": "object",
+            "properties": {
+                "block_height": {
+                    "type": "integer",
+                    "example": 12345
+                },
+                "chain_name": {
+                    "type": "string",
+                    "example": "mvc"
+                },
+                "content_type": {
+                    "type": "string",
+                    "example": "image/jpeg"
+                },
+                "creator_address": {
+                    "type": "string",
+                    "example": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+                },
+                "creator_meta_id": {
+                    "type": "string",
+                    "example": "abc123def456..."
+                },
+                "file_extension": {
+                    "type": "string",
+                    "example": ".jpg"
+                },
+                "file_hash": {
+                    "type": "string",
+                    "example": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                },
+                "file_md5": {
+                    "type": "string",
+                    "example": "d41d8cd98f00b204e9800998ecf8427e"
+                },
+                "file_name": {
+                    "type": "string",
+                    "example": "test.jpg"
+                },
+                "file_size": {
+                    "type": "integer",
+                    "example": 102400
+                },
+                "file_type": {
+                    "type": "string",
+                    "example": "image"
+                },
+                "operation": {
+                    "type": "string",
+                    "example": "create"
+                },
+                "owner_address": {
+                    "type": "string",
+                    "example": "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+                },
+                "owner_meta_id": {
+                    "type": "string",
+                    "example": "abc123def456..."
+                },
+                "path": {
+                    "type": "string",
+                    "example": "/file/test.jpg"
+                },
+                "pin_id": {
+                    "description": "ID             int64     `json:\"id\" example:\"1\"`",
+                    "type": "string",
+                    "example": "abc123def456i0"
+                },
+                "storage_path": {
+                    "description": "StorageType    string    `json:\"storage_type\" example:\"oss\"`",
+                    "type": "string",
+                    "example": "indexer/mvc/pinid123i0.jpg"
+                },
+                "timestamp": {
+                    "type": "integer",
+                    "example": 1699999999
+                },
+                "tx_id": {
+                    "type": "string",
+                    "example": "abc123def456789"
+                }
+            }
+        },
+        "meta-media-service_controller_respond.IndexerStatsResponse": {
+            "type": "object",
+            "properties": {
+                "total_files": {
+                    "type": "integer",
+                    "example": 12345
+                }
+            }
+        },
+        "meta-media-service_controller_respond.IndexerSyncStatusResponse": {
+            "type": "object",
+            "properties": {
+                "chain_name": {
+                    "description": "ID                int64     `json:\"id\" example:\"1\"`",
+                    "type": "string",
+                    "example": "mvc"
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "current_sync_height": {
+                    "type": "integer",
+                    "example": 12345
+                },
+                "latest_block_height": {
+                    "type": "integer",
+                    "example": 12350
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                }
+            }
+        },
         "meta-media-service_controller_respond.Response": {
             "description": "Unified API response structure",
             "type": "object",
@@ -440,147 +818,6 @@
                     "example": 123
                 }
             }
-        },
-        "model.IndexerFile": {
-            "type": "object",
-            "properties": {
-                "block_height": {
-                    "description": "Block height",
-                    "type": "integer"
-                },
-                "chain_name": {
-                    "description": "Blockchain related fields",
-                    "type": "string"
-                },
-                "content_type": {
-                    "description": "Content type",
-                    "type": "string"
-                },
-                "created_at": {
-                    "description": "Timestamps",
-                    "type": "string"
-                },
-                "creator_address": {
-                    "description": "Creator address",
-                    "type": "string"
-                },
-                "creator_meta_id": {
-                    "description": "Creator MetaID (SHA256 hash)",
-                    "type": "string"
-                },
-                "encryption": {
-                    "description": "Encryption method",
-                    "type": "string"
-                },
-                "file_md5": {
-                    "description": "File MD5",
-                    "type": "string"
-                },
-                "file_name": {
-                    "description": "File related fields",
-                    "type": "string"
-                },
-                "file_size": {
-                    "description": "File size",
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "operation": {
-                    "description": "create/modify/revoke",
-                    "type": "string"
-                },
-                "parent_path": {
-                    "description": "Parent path",
-                    "type": "string"
-                },
-                "path": {
-                    "description": "MetaID path",
-                    "type": "string"
-                },
-                "pin_id": {
-                    "description": "MetaID related fields",
-                    "type": "string"
-                },
-                "state": {
-                    "description": "State 0:EXIST,2:DELETED",
-                    "type": "integer"
-                },
-                "status": {
-                    "description": "Status fields",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/model.Status"
-                        }
-                    ]
-                },
-                "storage_path": {
-                    "description": "Storage path",
-                    "type": "string"
-                },
-                "storage_type": {
-                    "description": "Storage related fields",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "Timestamp (seconds since epoch)",
-                    "type": "integer"
-                },
-                "tx_id": {
-                    "description": "Transaction ID",
-                    "type": "string"
-                },
-                "updated_at": {
-                    "description": "Update time",
-                    "type": "string"
-                },
-                "version": {
-                    "description": "Version",
-                    "type": "string"
-                },
-                "vout": {
-                    "description": "Output index",
-                    "type": "integer"
-                }
-            }
-        },
-        "model.IndexerSyncStatus": {
-            "type": "object",
-            "properties": {
-                "chain_name": {
-                    "description": "Chain information",
-                    "type": "string"
-                },
-                "created_at": {
-                    "description": "Timestamps",
-                    "type": "string"
-                },
-                "current_sync_height": {
-                    "description": "Sync status",
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "updated_at": {
-                    "description": "Update time",
-                    "type": "string"
-                }
-            }
-        },
-        "model.Status": {
-            "type": "string",
-            "enum": [
-                "pending",
-                "success",
-                "failed"
-            ],
-            "x-enum-varnames": [
-                "StatusPending",
-                "StatusSuccess",
-                "StatusFailed"
-            ]
         }
     }
 }

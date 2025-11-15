@@ -22,6 +22,9 @@ const fileListContainer = document.getElementById('fileListContainer');
 const loadMoreBtn = document.getElementById('loadMoreBtn');
 const refreshStatusBtn = document.getElementById('refreshStatusBtn');
 const refreshFilesBtn = document.getElementById('refreshFilesBtn');
+const userAvatarContainer = document.getElementById('userAvatarContainer');
+const userAvatar = document.getElementById('userAvatar');
+const avatarPlaceholder = document.getElementById('avatarPlaceholder');
 
 // Status elements
 const currentBlockEl = document.getElementById('currentBlock');
@@ -149,6 +152,9 @@ async function connectWallet() {
             
             showNotification('Wallet connected successfully!', 'success');
             
+            // Load user avatar
+            loadUserAvatar();
+            
             // Load user files
             loadUserFiles();
         }
@@ -176,6 +182,12 @@ function disconnectWallet() {
     
     disconnectBtn.classList.add('hidden');
     
+    // Hide avatar
+    userAvatarContainer.classList.add('hidden');
+    userAvatar.style.display = 'none';
+    avatarPlaceholder.style.display = 'flex';
+    userAvatar.src = '';
+    
     fileListSection.classList.add('hidden');
     fileListContainer.innerHTML = '';
     
@@ -194,6 +206,59 @@ async function calculateMetaID(address) {
     } catch (error) {
         console.error('Failed to calculate MetaID:', error);
         return '';
+    }
+}
+
+// Load user avatar
+async function loadUserAvatar() {
+    if (!currentMetaID) {
+        console.log('MetaID not available, cannot load avatar');
+        return;
+    }
+    
+    try {
+        console.log('Loading avatar for MetaID:', currentMetaID);
+        
+        // Show avatar container
+        userAvatarContainer.classList.remove('hidden');
+        
+        // Try to get avatar by MetaID
+        const response = await fetch(`${API_BASE}/api/v1/avatars/metaid/${currentMetaID}`);
+        const data = await response.json();
+        
+        if (data.code === 0 && data.data) {
+            const avatar = data.data;
+            const avatarContentUrl = `${API_BASE}/api/v1/avatars/content/${avatar.pin_id}`;
+            
+            console.log('✅ Avatar found:', avatar);
+            
+            // Load avatar image
+            userAvatar.src = avatarContentUrl;
+            userAvatar.style.display = 'block';
+            avatarPlaceholder.style.display = 'none';
+            
+            // Handle image load error
+            userAvatar.onerror = () => {
+                console.warn('Failed to load avatar image, showing placeholder');
+                userAvatar.style.display = 'none';
+                avatarPlaceholder.style.display = 'flex';
+            };
+            
+            // Handle image load success
+            userAvatar.onload = () => {
+                console.log('✅ Avatar image loaded successfully');
+            };
+        } else {
+            // No avatar found, show placeholder
+            console.log('No avatar found for MetaID:', currentMetaID);
+            userAvatar.style.display = 'none';
+            avatarPlaceholder.style.display = 'flex';
+        }
+    } catch (error) {
+        console.error('Failed to load avatar:', error);
+        // On error, show placeholder
+        userAvatar.style.display = 'none';
+        avatarPlaceholder.style.display = 'flex';
     }
 }
 

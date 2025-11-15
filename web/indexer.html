@@ -381,9 +381,18 @@
         <!-- Metalet Wallet Connection -->
         <div class="wallet-section">
             <div class="wallet-info">
-                <div>
-                    <strong>Wallet Status:</strong>
-                    <span id="walletStatus">Not Connected</span>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <!-- User Avatar -->
+                    <div id="userAvatarContainer" class="hidden" style="width: 60px; height: 60px; border-radius: 50%; overflow: hidden; background: #f0f0f0; border: 3px solid #667eea; flex-shrink: 0;">
+                        <img id="userAvatar" src="" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                        <div id="avatarPlaceholder" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #999;">
+                            👤
+                        </div>
+                    </div>
+                    <div>
+                        <strong>Wallet Status:</strong>
+                        <span id="walletStatus">Not Connected</span>
+                    </div>
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <button id="connectBtn" class="btn btn-primary">Connect Metalet Wallet</button>
